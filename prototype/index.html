@@ -1,0 +1,582 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>签到 · 原型的原型</title>
+<style>
+  :root{
+    --bg:#f4f5f9; --card:#ffffff; --ink:#12141c; --ink2:#5b6072; --ink3:#9aa0b4;
+    --brand:#5b5bd6; --brand-soft:#ececff;
+    --ok:#10b981; --ok-soft:#e6f7f1;
+    --warn:#f59e0b; --warn-soft:#fef4e2;
+    --line:#eceef4;
+    --radius:18px;
+    --shadow:0 6px 24px rgba(23,26,48,.06);
+    --safe: env(safe-area-inset-bottom, 0px);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%}
+  body{
+    background:
+      radial-gradient(900px 500px at 15% -5%, #e8e6ff 0%, transparent 55%),
+      radial-gradient(700px 500px at 95% 105%, #dff5ee 0%, transparent 55%),
+      var(--bg);
+    font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    color:var(--ink);
+    display:flex; align-items:center; justify-content:center;
+    padding:24px; min-height:100%;
+  }
+  /* ---------- 手机外壳 ---------- */
+  .phone{
+    position:relative;
+    width:390px; height:844px; max-height:calc(100vh - 48px);
+    background:var(--bg);
+    border-radius:44px;
+    box-shadow:0 30px 80px rgba(20,22,40,.22), 0 0 0 10px #1b1d29, 0 0 0 12px #2c2f3d;
+    overflow:hidden;
+    display:flex; flex-direction:column;
+  }
+  .notch{position:absolute;top:10px;left:50%;transform:translateX(-50%);width:110px;height:26px;background:#1b1d29;border-radius:14px;z-index:60}
+  .statusbar{display:flex;justify-content:space-between;padding:14px 24px 4px;font-size:12px;color:var(--ink2);font-weight:600;letter-spacing:.2px}
+  /* ---------- 顶部 ---------- */
+  .topbar{padding:6px 18px 12px;display:flex;align-items:center;gap:10px}
+  .topbar h1{font-size:19px;margin:0;font-weight:700;letter-spacing:-.3px}
+  .topbar .sub{font-size:12px;color:var(--ink3);margin-top:2px}
+  .avatar{margin-left:auto;width:34px;height:34px;border-radius:12px;background:linear-gradient(135deg,#c7c5ff,#8ee0c6);display:grid;place-items:center;font-size:15px}
+  /* ---------- 内容区 ---------- */
+  .scroll{flex:1;overflow-y:auto;overflow-x:hidden;padding:0 16px calc(96px + var(--safe));scroll-behavior:smooth}
+  .scroll::-webkit-scrollbar{width:0}
+  .screen{display:none;animation:fade .22s ease}
+  .screen.active{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+  .card{background:var(--card);border-radius:var(--radius);padding:14px;box-shadow:var(--shadow);border:1px solid rgba(255,255,255,.7)}
+  .muted{color:var(--ink2)}
+  .tiny{font-size:12px;color:var(--ink3)}
+
+  /* 积分卡 */
+  .wallet{
+    margin-top:6px;padding:18px;border-radius:24px;color:#fff;position:relative;overflow:hidden;
+    background:linear-gradient(135deg,#5b5bd6 0%,#7c6cf5 48%,#4bc4a4 130%);
+    box-shadow:0 14px 30px rgba(91,91,214,.28);
+  }
+  .wallet:after{content:"";position:absolute;right:-40px;top:-60px;width:180px;height:180px;border-radius:50%;background:rgba(255,255,255,.12)}
+  .wallet .lbl{font-size:12px;opacity:.8;letter-spacing:.4px}
+  .wallet .num{font-size:38px;font-weight:800;letter-spacing:-1.5px;line-height:1.1;margin:2px 0 0}
+  .wallet .num small{font-size:14px;font-weight:600;opacity:.85;margin-left:4px}
+  .wallet .row{display:flex;gap:16px;margin-top:10px;font-size:12px;opacity:.92}
+  .wallet .row b{font-weight:700}
+
+  /* 进度条 */
+  .bar{height:8px;border-radius:99px;background:var(--line);overflow:hidden}
+  .bar > i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#5b5bd6,#7c6cf5);transition:width .5s cubic-bezier(.2,.8,.2,1)}
+
+  /* 习惯行 */
+  .habit{display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--card);border-radius:16px;margin-top:10px;box-shadow:var(--shadow);border:1px solid rgba(255,255,255,.7);transition:.2s}
+  .habit.done{background:linear-gradient(180deg,#f7fdfb,#fff);border-color:#e2f5ee}
+  .habit .ico{width:42px;height:42px;border-radius:14px;display:grid;place-items:center;font-size:20px;background:var(--brand-soft);flex:none}
+  .habit.done .ico{background:var(--ok-soft)}
+  .habit .meta{flex:1;min-width:0}
+  .habit .name{font-weight:600;font-size:15px;display:flex;align-items:center;gap:6px}
+  .habit .sub{font-size:12px;color:var(--ink3);margin-top:2px}
+  .pill{font-size:10px;padding:2px 7px;border-radius:99px;background:var(--brand-soft);color:var(--brand);font-weight:700;white-space:nowrap}
+  .pill.ok{background:var(--ok-soft);color:#0b8f6b}
+  .pill.warn{background:var(--warn-soft);color:#a86a05}
+  .check{width:34px;height:34px;border-radius:50%;border:2px solid #dfe2ee;background:#fff;display:grid;place-items:center;flex:none;cursor:pointer;transition:.2s;font-size:15px;color:#c3c8d8}
+  .check:active{transform:scale(.9)}
+  .habit.done .check{background:var(--ok);border-color:var(--ok);color:#fff}
+  .check.pop{animation:pop .45s cubic-bezier(.2,1.6,.4,1)}
+  @keyframes pop{0%{transform:scale(.6)}60%{transform:scale(1.18)}100%{transform:scale(1)}}
+
+  /* 计时条 */
+  .running{display:flex;align-items:center;gap:12px;margin-top:14px;padding:12px 14px;border-radius:16px;background:#12141c;color:#fff;box-shadow:0 10px 24px rgba(18,20,28,.25)}
+  .running .dot{width:8px;height:8px;border-radius:50%;background:#4bd6a7;box-shadow:0 0 0 0 rgba(75,214,167,.7);animation:pulse 1.8s infinite}
+  @keyframes pulse{70%{box-shadow:0 0 0 10px rgba(75,214,167,0)}100%{box-shadow:0 0 0 0 rgba(75,214,167,0)}}
+  .running .t{font-variant-numeric:tabular-nums;font-weight:700;font-size:17px;letter-spacing:.5px}
+
+  /* 计时页 */
+  .ring-wrap{display:grid;place-items:center;margin:22px 0 8px;position:relative}
+  .ring{--p:0;width:246px;height:246px;border-radius:50%;display:grid;place-items:center;
+    background:conic-gradient(var(--brand) calc(var(--p)*1%), #e7e8f4 0);
+    transition:background .6s linear}
+  .ring .inner{width:214px;height:214px;border-radius:50%;background:var(--bg);display:grid;place-items:center;text-align:center}
+  .ring .time{font-size:46px;font-weight:800;letter-spacing:-2px;font-variant-numeric:tabular-nums}
+  .ring .cap{font-size:12px;color:var(--ink3);margin-top:-4px}
+  .pre{display:flex;gap:8px;justify-content:center;margin:14px 0 18px;flex-wrap:wrap}
+  .chip{padding:7px 14px;border-radius:99px;background:#fff;border:1px solid var(--line);font-size:13px;cursor:pointer;transition:.15s}
+  .chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .btn{display:block;width:100%;padding:15px;border:0;border-radius:16px;background:var(--brand);color:#fff;font-size:16px;font-weight:700;cursor:pointer;transition:.15s;box-shadow:0 10px 22px rgba(91,91,214,.28)}
+  .btn:active{transform:scale(.985)}
+  .btn.ghost{background:#fff;color:var(--ink);box-shadow:none;border:1px solid var(--line)}
+  .btn.dark{background:var(--ink);box-shadow:0 10px 22px rgba(18,20,28,.22)}
+  .row2{display:flex;gap:10px}
+
+  /* 商城 */
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+  .reward{background:#fff;border-radius:18px;overflow:hidden;box-shadow:var(--shadow);border:1px solid rgba(255,255,255,.7);position:relative}
+  .reward .img{height:110px;display:grid;place-items:center;font-size:38px;background:linear-gradient(135deg,#e9e7ff,#dff5ee)}
+  .reward .b{padding:10px 12px 12px}
+  .reward .nm{font-weight:600;font-size:14px;line-height:1.3}
+  .reward .pr{margin-top:6px;font-weight:800;color:var(--brand);font-size:15px}
+  .reward .pr small{font-weight:600;color:var(--ink3);font-size:11px}
+  .tag{position:absolute;top:8px;left:8px;font-size:10px;font-weight:700;padding:3px 7px;border-radius:8px;background:rgba(18,20,28,.72);color:#fff;backdrop-filter:blur(4px)}
+  .tag.g{background:rgba(16,185,129,.9)}
+
+  /* 技能卡 */
+  .skill{display:flex;align-items:center;gap:12px;padding:12px;border-radius:16px;background:#fff;box-shadow:var(--shadow);margin-top:10px}
+  .skill .ico{width:44px;height:44px;border-radius:14px;display:grid;place-items:center;font-size:20px;flex:none}
+  .skill .h{font-weight:700;font-size:18px;font-variant-numeric:tabular-nums;letter-spacing:-.5px}
+  .mini{display:flex;gap:3px;margin-top:6px}
+  .mini i{width:9px;height:9px;border-radius:3px;background:#e9ebf3}
+  .mini i.on{background:var(--brand)}
+  .mini i.g{background:#bfe9d9}
+
+  /* 热力图 */
+  .heat{display:grid;grid-auto-flow:column;grid-template-rows:repeat(7,10px);gap:3px;overflow:hidden}
+  .heat i{width:10px;height:10px;border-radius:3px;background:#edeff6}
+  .heat i.l1{background:#d9d8ff}.heat i.l2{background:#b3b1fa}.heat i.l3{background:#8a87f2}.heat i.l4{background:#5b5bd6}
+
+  /* 底栏 */
+  .tabbar{position:absolute;left:0;right:0;bottom:0;display:flex;padding:8px 6px calc(10px + var(--safe));background:rgba(255,255,255,.86);backdrop-filter:blur(18px);border-top:1px solid var(--line);z-index:50}
+  .tab{flex:1;display:grid;place-items:center;gap:3px;padding:6px 0;border:0;background:none;color:var(--ink3);font-size:10px;font-weight:600;cursor:pointer;transition:.15s}
+  .tab .i{font-size:19px;line-height:1;filter:grayscale(1) opacity(.55);transition:.15s}
+  .tab.on{color:var(--brand)}
+  .tab.on .i{filter:none;transform:translateY(-1px)}
+
+  /* 抽屉 */
+  .mask{position:absolute;inset:0;background:rgba(12,14,24,.42);opacity:0;pointer-events:none;transition:.25s;z-index:70;backdrop-filter:blur(2px)}
+  .mask.on{opacity:1;pointer-events:auto}
+  .sheet{position:absolute;left:0;right:0;bottom:0;background:#fff;border-radius:26px 26px 0 0;transform:translateY(102%);transition:transform .3s cubic-bezier(.2,.9,.25,1);z-index:80;max-height:88%;display:flex;flex-direction:column;box-shadow:0 -12px 40px rgba(18,20,28,.18)}
+  .sheet.on{transform:none}
+  .sheet .handle{width:38px;height:4px;border-radius:99px;background:#e2e5ef;margin:10px auto 4px;flex:none}
+  .sheet .body{overflow-y:auto;padding:8px 18px calc(20px + var(--safe))}
+  .sheet h2{margin:6px 0 2px;font-size:20px;letter-spacing:-.4px}
+
+  .toast{position:absolute;left:50%;top:70px;transform:translate(-50%,-16px);background:rgba(18,20,28,.92);color:#fff;padding:10px 18px;border-radius:99px;font-size:13px;font-weight:600;opacity:0;pointer-events:none;transition:.25s;z-index:90}
+  .toast.on{opacity:1;transform:translate(-50%,0)}
+
+  .kv{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px dashed var(--line);font-size:13px}
+  .kv:last-child{border:0}
+  .kv span:first-child{color:var(--ink3)}
+  .person{display:flex;align-items:center;gap:8px;padding:8px 0}
+  .person .av{width:30px;height:30px;border-radius:10px;display:grid;place-items:center;font-size:13px;background:var(--brand-soft)}
+  .hint{font-size:12px;color:var(--ink3);background:#f7f8fc;border-radius:12px;padding:10px 12px;margin-top:12px;line-height:1.55}
+  @media (max-width:520px){
+    body{padding:0;display:block}
+    .phone{width:100%;height:100dvh;max-height:none;border-radius:0;box-shadow:none}
+    .notch{display:none}
+    .statusbar{padding-top:env(safe-area-inset-top,10px)}
+  }
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="notch"></div>
+  <div class="statusbar"><span>9:41</span><span>● ● ● &nbsp;100%</span></div>
+
+  <div class="topbar">
+    <div>
+      <h1 id="pageTitle">今天</h1>
+      <div class="sub" id="pageSub">10 月 20 日 · 周二 · 连续第 12 天</div>
+    </div>
+    <div class="avatar">我</div>
+  </div>
+
+  <div class="scroll" id="scroll">
+
+    <!-- ============ 今日 ============ -->
+    <section class="screen active" id="s-today">
+      <div class="wallet">
+        <div class="lbl">可用积分</div>
+        <div class="num" id="balance">1,240<small>分</small></div>
+        <div class="row">
+          <span>本周 <b>+180</b></span>
+          <span>累计 <b>3,260</b></span>
+          <span>待发放 <b>1</b></span>
+        </div>
+      </div>
+
+      <div class="running" onclick="go('timer')">
+        <span class="dot"></span>
+        <div style="flex:1">
+          <div style="font-size:12px;opacity:.66">正在专注 · 吉他</div>
+          <div class="t" id="miniTimer">18:42</div>
+        </div>
+        <span style="font-size:12px;opacity:.6">点开 ›</span>
+      </div>
+
+      <div style="display:flex;align-items:baseline;justify-content:space-between;margin:20px 2px 10px">
+        <b style="font-size:16px">今天 5 件事</b>
+        <span class="tiny">已完成 <b id="doneCount">2</b>/5</span>
+      </div>
+      <div class="bar"><i id="todayBar" style="width:40%"></i></div>
+
+      <div id="habitList">
+        <!-- 已完成 -->
+        <div class="habit done" data-pts="10">
+          <div class="ico">🌅</div>
+          <div class="meta">
+            <div class="name">早起 <span class="pill ok">连续 12 天</span></div>
+            <div class="sub">06:30 前起床 · +10 分</div>
+          </div>
+          <button class="check done" onclick="toggle(this)">✓</button>
+        </div>
+        <!-- 可打卡 -->
+        <div class="habit" data-pts="15">
+          <div class="ico">📖</div>
+          <div class="meta">
+            <div class="name">阅读 30 分钟</div>
+            <div class="sub">每天 · +15 分</div>
+          </div>
+          <button class="check" onclick="checkIn(this)"></button>
+        </div>
+        <!-- 计时型 -->
+        <div class="habit" data-pts="0">
+          <div class="ico">🎸</div>
+          <div class="meta">
+            <div class="name">练琴 45 分钟 <span class="pill">计时</span></div>
+            <div class="sub">练完自动打卡 · 按阶梯给分</div>
+          </div>
+          <button class="check" onclick="go('timer')">▶</button>
+        </div>
+        <!-- 计量型 -->
+        <div class="habit" data-pts="5">
+          <div class="ico">💧</div>
+          <div class="meta">
+            <div class="name">喝水 <span class="pill">2/3 杯</span></div>
+            <div class="sub">每杯 +5 分 · 点一下加一杯</div>
+          </div>
+          <button class="check" onclick="checkIn(this)"></button>
+        </div>
+        <!-- 负向 -->
+        <div class="habit done" data-pts="8">
+          <div class="ico">🚫</div>
+          <div class="meta">
+            <div class="name">不喝奶茶 <span class="pill warn">戒断</span></div>
+            <div class="sub">今天守住了 · 明早结算 +8</div>
+          </div>
+          <button class="check done" onclick="toggle(this)">✓</button>
+        </div>
+      </div>
+
+      <button class="btn ghost" style="margin-top:14px" onclick="toast('原型演示：这里会打开「新建习惯」')">＋ 新建习惯</button>
+      <div style="height:8px"></div>
+    </section>
+
+    <!-- ============ 习惯 ============ -->
+    <section class="screen" id="s-habits">
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <b>本周完成率</b><span style="font-weight:800;color:var(--ok)">86%</span>
+        </div>
+        <div class="bar" style="margin-top:10px"><i style="width:86%;background:linear-gradient(90deg,#10b981,#4bd6a7)"></i></div>
+        <div class="tiny" style="margin-top:8px">比上周 +6% · 最好的习惯是「早起」</div>
+      </div>
+
+      <div style="margin:18px 2px 6px"><b>近 12 周</b></div>
+      <div class="card">
+        <div class="heat" id="heat"></div>
+        <div class="tiny" style="margin-top:10px;display:flex;justify-content:space-between"><span>少</span><span>多</span></div>
+      </div>
+
+      <div style="margin:18px 2px 6px"><b>全部习惯</b></div>
+      <div class="habit"><div class="ico">🌅</div><div class="meta"><div class="name">早起 <span class="pill ok">12</span></div><div class="sub">每天 06:30 · +10 分</div></div><button class="check done">✓</button></div>
+      <div class="habit"><div class="ico">📖</div><div class="meta"><div class="name">阅读 <span class="pill ok">7</span></div><div class="sub">每天 · +15 分</div></div><button class="check"></button></div>
+      <div class="habit"><div class="ico">🏃</div><div class="meta"><div class="name">跑步 <span class="pill ok">3</span></div><div class="sub">每周 3 次 · +20 分</div></div><button class="check"></button></div>
+      <div class="habit"><div class="ico">🚫</div><div class="meta"><div class="name">不喝奶茶 <span class="pill warn">戒断</span></div><div class="sub">守住 +8 · 破戒 −8</div></div><button class="check done">✓</button></div>
+      <div style="height:8px"></div>
+    </section>
+
+    <!-- ============ 计时 ============ -->
+    <section class="screen" id="s-timer">
+      <div class="ring-wrap">
+        <div class="ring" id="ring" style="--p:0">
+          <div class="inner">
+            <div>
+              <div class="time" id="clock">25:00</div>
+              <div class="cap" id="timerCap">吉他 · 第 1 段</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pre">
+        <button class="chip" onclick="pick(this,5)">5 分</button>
+        <button class="chip on" onclick="pick(this,25)">25 分</button>
+        <button class="chip" onclick="pick(this,45)">45 分</button>
+        <button class="chip" onclick="pick(this,90)">90 分</button>
+        <button class="chip" onclick="pick(this,0)">正计时</button>
+      </div>
+
+      <div class="row2">
+        <button class="btn" id="startBtn" onclick="startStop()">开始专注</button>
+        <button class="btn ghost" style="width:96px;flex:none" onclick="toast('原型演示：选择技能 / 关联习惯')">🎸 吉他</button>
+      </div>
+
+      <div class="hint">
+        <b>计分规则（你自己定）</b><br>
+        25 分钟 = 10 分 · 45 分钟 = 20 分 · 90 分钟 = 45 分<br>
+        中途放弃：计时长、不给分、不算连续。
+      </div>
+
+      <div style="margin:20px 2px 6px;display:flex;justify-content:space-between;align-items:baseline">
+        <b>今天的记录</b><span class="tiny">共 1 小时 20 分</span>
+      </div>
+      <div class="habit"><div class="ico">🎸</div><div class="meta"><div class="name">吉他 45:00</div><div class="sub">12:10 – 12:55 · +20 分</div></div><span class="pill ok">完成</span></div>
+      <div class="habit"><div class="ico">📖</div><div class="meta"><div class="name">阅读 35:00</div><div class="sub">08:05 – 08:40 · +15 分</div></div><span class="pill ok">完成</span></div>
+      <div style="height:8px"></div>
+    </section>
+
+    <!-- ============ 奖品 ============ -->
+    <section class="screen" id="s-rewards">
+      <div style="display:flex;gap:8px;margin-top:4px;overflow:auto;padding-bottom:4px">
+        <button class="chip on" onclick="pickChip(this)">全部</button>
+        <button class="chip" onclick="pickChip(this)">实物</button>
+        <button class="chip" onclick="pickChip(this)">体验</button>
+        <button class="chip" onclick="pickChip(this)">特权</button>
+      </div>
+
+      <div class="grid">
+        <div class="reward" onclick="openReward()">
+          <div class="tag g">合兑中</div>
+          <div class="img">🎧</div>
+          <div class="b"><div class="nm">那副一直在看的耳机</div><div class="pr">800 <small>分</small></div></div>
+        </div>
+        <div class="reward" onclick="openReward()">
+          <div class="img">🧋</div>
+          <div class="b"><div class="nm">周末一杯奶茶</div><div class="pr">120 <small>分</small></div></div>
+        </div>
+        <div class="reward" onclick="openReward()">
+          <div class="img">🎮</div>
+          <div class="b"><div class="nm">多玩 1 小时游戏</div><div class="pr">200 <small>分</small></div></div>
+        </div>
+        <div class="reward" onclick="openReward()">
+          <div class="img">📚</div>
+          <div class="b"><div class="nm">挑一本书</div><div class="pr">500 <small>分</small></div></div>
+        </div>
+        <div class="reward" onclick="openReward()">
+          <div class="tag">仅剩 1</div>
+          <div class="img">🎬</div>
+          <div class="b"><div class="nm">一场电影</div><div class="pr">600 <small>分</small></div></div>
+        </div>
+        <div class="reward" onclick="openReward()">
+          <div class="img">😴</div>
+          <div class="b"><div class="nm">睡到自然醒</div><div class="pr">300 <small>分</small></div></div>
+        </div>
+      </div>
+
+      <div class="hint" style="margin-top:16px">
+        积分不够也能换：点进奖品 → <b>一起兑换</b>，两个人凑分换同一个东西。凑不齐到期自动解散，分数原路退回。
+      </div>
+      <div style="height:8px"></div>
+    </section>
+
+    <!-- ============ 我的 ============ -->
+    <section class="screen" id="s-me">
+      <div class="card" style="display:flex;align-items:center;gap:12px">
+        <div class="avatar" style="width:52px;height:52px;border-radius:18px;font-size:20px">我</div>
+        <div style="flex:1">
+          <div style="font-weight:700;font-size:17px">小满</div>
+          <div class="tiny">和小雨在「两个人的成长计划」</div>
+        </div>
+        <span class="pill">管理员</span>
+      </div>
+
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin:20px 2px 6px">
+        <b>技能卡片</b><span class="tiny">共 12.5 小时</span>
+      </div>
+      <div class="skill">
+        <div class="ico" style="background:#eef0ff">🎸</div>
+        <div style="flex:1">
+          <div style="display:flex;align-items:baseline;gap:8px"><b>吉他</b><span class="pill">Lv.3</span></div>
+          <div class="mini"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        </div>
+        <div style="text-align:right"><div class="h">12.5h</div><div class="tiny">距 Lv.4 还差 47.5h</div></div>
+      </div>
+      <div class="skill">
+        <div class="ico" style="background:#e8f8f2">📖</div>
+        <div style="flex:1">
+          <div style="display:flex;align-items:baseline;gap:8px"><b>阅读</b><span class="pill">Lv.2</span></div>
+          <div class="mini"><i class="on"></i><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        </div>
+        <div style="text-align:right"><div class="h">26.0h</div><div class="tiny">距 Lv.3 还差 4.0h</div></div>
+      </div>
+
+      <div style="margin:20px 2px 6px"><b>最近积分</b></div>
+      <div class="card">
+        <div class="kv"><span>练琴 45 分钟</span><b style="color:var(--ok)">+20</b></div>
+        <div class="kv"><span>早起打卡</span><b style="color:var(--ok)">+10</b></div>
+        <div class="kv"><span>兑换 · 周末一杯奶茶</span><b style="color:#e2534b">−120</b></div>
+        <div class="kv"><span>阅读 30 分钟</span><b style="color:var(--ok)">+15</b></div>
+        <div class="kv"><span>连续 7 天奖励</span><b style="color:var(--ok)">+20</b></div>
+      </div>
+
+      <button class="btn ghost" style="margin-top:14px" onclick="toast('原型演示：设置页')">⚙️ 设置</button>
+      <div style="height:8px"></div>
+    </section>
+  </div>
+
+  <!-- 底部导航 -->
+  <nav class="tabbar">
+    <button class="tab on" data-s="today" onclick="go('today')"><span class="i">☀️</span>今天</button>
+    <button class="tab" data-s="habits" onclick="go('habits')"><span class="i">✅</span>习惯</button>
+    <button class="tab" data-s="timer" onclick="go('timer')"><span class="i">⏱</span>计时</button>
+    <button class="tab" data-s="rewards" onclick="go('rewards')"><span class="i">🎁</span>奖品</button>
+    <button class="tab" data-s="me" onclick="go('me')"><span class="i">🙂</span>我的</button>
+  </nav>
+
+  <div class="toast" id="toast"></div>
+
+  <!-- 遮罩 + 抽屉 -->
+  <div class="mask" id="mask" onclick="closeSheet()"></div>
+  <div class="sheet" id="sheet">
+    <div class="handle"></div>
+    <div class="body" id="sheetBody"></div>
+  </div>
+</div>
+
+<script>
+/* ---------------- 导航 ---------------- */
+const TITLES = {
+  today:  ['今天','10 月 20 日 · 周二 · 连续第 12 天'],
+  habits: ['习惯','6 个习惯 · 本周完成 86%'],
+  timer:  ['计时','专注会自动记进技能卡片'],
+  rewards:['奖品','积分换点真的东西'],
+  me:     ['我的','技能 · 积分 · 设置'],
+};
+function go(name){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById('s-'+name).classList.add('active');
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on', t.dataset.s===name));
+  const [t,s] = TITLES[name]; pageTitle.textContent=t; pageSub.textContent=s;
+  scroll.scrollTop = 0;
+}
+
+/* ---------------- 打卡 ---------------- */
+let balance = 1240, done = 2, total = 5;
+function checkIn(btn){
+  const row = btn.closest('.habit');
+  const pts = +row.dataset.pts || 0;
+  if (row.classList.contains('done')) { toast('今天已完成，再点就是撤销'); return; }
+  row.classList.add('done');
+  btn.classList.add('done','pop');
+  btn.textContent = '✓';
+  balance += pts; done++;
+  document.getElementById('balance').innerHTML = balance.toLocaleString()+'<small>分</small>';
+  document.getElementById('doneCount').textContent = done;
+  document.getElementById('todayBar').style.width = Math.min(100, done/total*100)+'%';
+  toast(pts ? `+${pts} 分 · 余额 ${balance.toLocaleString()}` : '已记录');
+  setTimeout(()=>btn.classList.remove('pop'), 500);
+}
+function toggle(btn){
+  const row = btn.closest('.habit');
+  if (!row.classList.contains('done')) { checkIn(btn); return; }
+  row.classList.remove('done'); btn.classList.remove('done'); btn.textContent='';
+  balance -= (+row.dataset.pts||0); done--;
+  document.getElementById('balance').innerHTML = balance.toLocaleString()+'<small>分</small>';
+  document.getElementById('doneCount').textContent = done;
+  document.getElementById('todayBar').style.width = Math.min(100, done/total*100)+'%';
+  toast('已撤销');
+}
+
+/* ---------------- 计时 ---------------- */
+let totalSec = 25*60, left = 25*60, running = false, tick = null, planned = 25;
+function pick(el, min){
+  document.querySelectorAll('.pre .chip').forEach(c=>c.classList.remove('on'));
+  el.classList.add('on');
+  planned = min;
+  stop();
+  if (min === 0){ clock.textContent='00:00'; ring.style.setProperty('--p',0); timerCap.textContent='吉他 · 正计时'; }
+  else { left = min*60; render(); timerCap.textContent = '吉他 · 目标 '+min+' 分钟'; }
+}
+function render(){
+  const m = Math.floor(left/60), s = left%60;
+  clock.textContent = String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+  const p = planned ? (1-left/(planned*60))*100 : 0;
+  ring.style.setProperty('--p', Math.min(100,Math.max(0,p)).toFixed(1));
+}
+function startStop(){
+  if (running) { stop(); toast('已暂停'); return; }
+  running = true; startBtn.textContent = '暂停';
+  startBtn.classList.add('dark');
+  tick = setInterval(()=>{
+    left--; render();
+    if (left <= 0){ stop(); toast('完成！按阶梯规则 +20 分'); }
+  }, 1000);
+}
+function stop(){ running=false; clearInterval(tick); startBtn.textContent='开始专注'; startBtn.classList.remove('dark'); }
+
+/* 小定时器：顶部"进行中"条 */
+let mini = 18*60+42;
+setInterval(()=>{ mini++; const m=Math.floor(mini/60), s=mini%60;
+  document.getElementById('miniTimer').textContent = String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+}, 1000);
+
+/* ---------------- 热力图 ---------------- */
+(function(){
+  const h = document.getElementById('heat');
+  for (let w=0; w<12; w++) for (let d=0; d<7; d++){
+    const i = document.createElement('i');
+    const r = Math.random();
+    if (r > .82) i.className = 'l4'; else if (r > .62) i.className='l3';
+    else if (r > .42) i.className='l2'; else if (r > .2) i.className='l1';
+    h.appendChild(i);
+  }
+})();
+
+/* ---------------- 抽屉 ---------------- */
+function openSheet(html){
+  document.getElementById('sheetBody').innerHTML = html;
+  mask.classList.add('on'); sheet.classList.add('on');
+}
+function closeSheet(){ mask.classList.remove('on'); sheet.classList.remove('on'); }
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('on');
+  clearTimeout(t._h); t._h = setTimeout(()=>t.classList.remove('on'), 1800);
+}
+
+/* ---------------- 奖品详情（含合兑） ---------------- */
+let raised = 500;
+function openReward(){
+  raised = 500;
+  openSheet(`
+    <div style="height:130px;border-radius:18px;display:grid;place-items:center;font-size:56px;background:linear-gradient(135deg,#e9e7ff,#dff5ee);margin:4px 0 14px">🎧</div>
+    <h2>那副一直在看的耳机</h2>
+    <div style="font-size:13px;color:var(--ink2);margin-top:4px">一直想买的那副。换到就归你，运费我出。</div>
+    <div style="display:flex;align-items:baseline;gap:10px;margin:14px 0">
+      <div style="font-size:30px;font-weight:800;color:var(--brand);letter-spacing:-1px">800<span style="font-size:13px;color:var(--ink3);margin-left:2px">分</span></div>
+      <span class="pill warn">你只有 520 分</span>
+    </div>
+
+    <div style="background:#f7f8fc;border-radius:16px;padding:14px">
+      <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:600">
+        <span>合兑进度</span><span id="prog">500 / 800</span>
+      </div>
+      <div class="bar" style="margin-top:8px"><i id="progBar" style="width:62.5%"></i></div>
+      <div class="person"><div class="av">我</div><div style="flex:1;font-size:13px">小满</div><b>出 500</b></div>
+      <div class="person"><div class="av" style="background:#e8f8f2">雨</div><div style="flex:1;font-size:13px">小雨</div><span id="bState" class="tiny">待确认</span></div>
+      <div class="tiny" style="margin-top:8px">还差 <b id="gap">300</b> 分 · 24 小时内有效</div>
+    </div>
+
+    <button class="btn" style="margin-top:16px" id="joinBtn" onclick="join()">让小雨出 300 分</button>
+    <button class="btn ghost" style="margin-top:10px" onclick="toast('原型演示：取消合兑，已扣的分退回');closeSheet()">取消</button>
+    <div class="hint" style="margin-top:12px">凑不齐会自动解散，每个人已扣的分数原路退回；期间奖品库存已被预占，不会被别人买走。</div>
+  `);
+}
+function join(){
+  raised = 800;
+  document.getElementById('prog').textContent = '800 / 800';
+  document.getElementById('progBar').style.width = '100%';
+  document.getElementById('gap').textContent = '0';
+  document.getElementById('bState').innerHTML = '<span class="pill ok">已出 300</span>';
+  const b = document.getElementById('joinBtn');
+  b.textContent = '凑齐了！生成兑换单';
+  b.onclick = ()=>{ closeSheet(); toast('已成立 · 等耳机到货'); };
+  toast('小雨出了 300 分，凑齐！');
+}
+function pickChip(el){ el.parentElement.querySelectorAll('.chip').forEach(c=>c.classList.remove('on')); el.classList.add('on'); }
+</script>
+</body>
+</html>

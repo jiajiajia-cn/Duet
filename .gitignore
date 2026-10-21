@@ -1,0 +1,40 @@
+﻿# 忽略规则（项目初始化用）
+
+# 依赖与构建产物
+node_modules/
+.next/
+dist/
+build/
+out/
+*.tsbuildinfo
+
+# 环境变量与密钥
+.env
+.env.*
+!.env.example
+
+# 系统/编辑器
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# 运行时数据与日志
+*.log
+logs/
+data/
+uploads/
+backups/
+shots/
+*.sqlite
+*.sqlite3
+*.db
+
+# DSH 沙箱与临时文件
+.acl-reports/
+_research/
+.dsh-*
+
+# 项目自带的开发数据库
+.pgdata/
+

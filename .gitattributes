@@ -1,0 +1,14 @@
+# 统一换行符：Linux 容器里的脚本必须是 LF，Windows 脚本保持 CRLF
+* text=auto eol=lf
+
+*.sh text eol=lf
+Dockerfile text eol=lf
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary

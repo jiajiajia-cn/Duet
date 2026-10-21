@@ -1,0 +1,724 @@
+﻿// 习惯成长与积分奖励系统 · 数据库模型（MVP + V1.1 预留字段）
+// 对应文档：docs/数据模型.md、docs/PRD.md v0.3
+// 数据库：PostgreSQL（先 Supabase，后续可迁自建）
+
+generator client {
+  provider      = "prisma-client-js"
+  // 本地是 Windows，容器是 Debian，两个都要带上
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// 账号与圈子
+// ============================================================
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  nickname     String   @db.VarChar(20)
+  avatarUrl    String?
+  timezone     String   @default("Asia/Shanghai")
+  /// 日切时间 0-6，4 表示凌晨 4 点前算前一天
+  dayStartHour Int      @default(0)
+  /// 0=周日 1=周一
+  weekStart    Int      @default(1)
+  lastActiveAt DateTime?
+  /// 当前所在的圈子（多个圈子时用来切换）
+  activeCircleId String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  activeCircle   Circle? @relation("ActiveCircle", fields: [activeCircleId], references: [id], onDelete: SetNull)
+
+  memberships    CircleMember[]
+  habitsOwned    Habit[]              @relation("HabitOwner")
+  checkins       Checkin[]
+  timerSessions  TimerSession[]
+  skills         Skill[]
+  wallets        Wallet[]
+  redemptionsInitiated Redemption[]   @relation("RedemptionInitiator")
+  redemptionsReceived  Redemption[]   @relation("RedemptionRecipient")
+  participations RedemptionParticipant[]
+  notifications  Notification[]
+  auditLogs      AuditLog[]
+  entries        Entry[]
+  roomMembers    RoomMember[]
+  supervisionsAsSupervisor Supervision[] @relation("Supervisor")
+  supervisionsAsMember     Supervision[] @relation("SupervisedMember")
+}
+
+model Circle {
+  id         String   @id @default(cuid())
+  name       String   @db.VarChar(30)
+  avatarUrl  String?
+  inviteCode String   @unique
+  ownerId    String
+  /// 圈子级配置：时区、日切、默认审核开关、是否允许补卡等（见 PRD 5.1.4）
+  settings   Json     @default("{}")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  members     CircleMember[]
+  activeFor   User[]  @relation("ActiveCircle")
+  habits      Habit[]
+  rewards     Reward[]
+  skills      Skill[]
+  redemptions Redemption[]
+  wallets     Wallet[]
+  supervisions Supervision[]
+  creditRules CreditRule[]
+  auditLogs   AuditLog[]
+  entries     Entry[]
+  rooms       Room[]
+  timerSessions TimerSession[]
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  MEMBER
+  SUPERVISOR
+}
+
+enum MemberStatus {
+  ACTIVE
+  LEFT
+  REMOVED
+}
+
+model CircleMember {
+  id       String       @id @default(cuid())
+  circleId String
+  userId   String
+  role     Role         @default(MEMBER)
+  status   MemberStatus @default(ACTIVE)
+  joinedAt DateTime     @default(now())
+  leftAt   DateTime?
+
+  circle Circle @relation(fields: [circleId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([circleId, userId])
+  @@index([userId])
+}
+
+model Supervision {
+  id           String   @id @default(cuid())
+  circleId     String
+  supervisorId String
+  memberId     String
+  /// 为空表示监督该成员的全部习惯
+  habitId      String?
+  createdAt    DateTime @default(now())
+
+  circle     Circle @relation(fields: [circleId], references: [id], onDelete: Cascade)
+  supervisor User   @relation("Supervisor", fields: [supervisorId], references: [id], onDelete: Cascade)
+  member     User   @relation("SupervisedMember", fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([supervisorId, memberId, habitId])
+  @@index([circleId])
+}
+
+// ============================================================
+// 习惯与打卡
+// ============================================================
+
+enum HabitType {
+  CHECK // 普通打卡
+  QUANTITY // 计量（喝水 3 杯）
+  NEGATIVE // 负向/戒断（今天没做就得分）
+  TIMED // 计时达标
+}
+
+enum GoalType {
+  AT_LEAST
+  AT_MOST
+}
+
+enum ProofRequired {
+  NONE
+  NOTE
+  IMAGE
+}
+
+enum Visibility {
+  PRIVATE
+  CIRCLE
+}
+
+enum HabitStatus {
+  ACTIVE
+  PAUSED
+  ARCHIVED
+}
+
+model Habit {
+  id        String @id @default(cuid())
+  circleId  String
+  ownerId   String
+  title     String @db.VarChar(40)
+  icon      String @default("✅")
+  color     String @default("#6366f1")
+  type      HabitType @default(CHECK)
+  goalType  GoalType  @default(AT_LEAST)
+  /// {"kind":"daily"} | {"kind":"weekdays","days":[1,3,5]} | {"kind":"perWeek","times":3}
+  /// | {"kind":"interval","every":2,"anchor":"2026-10-01"} | {"kind":"monthly","times":4}
+  frequency Json
+  unit            String? @db.VarChar(8)
+  targetPerPeriod Int     @default(1)
+  /// 单日允许多次打卡（如喝水每杯一条）
+  countPerDay     Int     @default(1)
+
+  pointsPerCheckin Int @default(0)
+  pointsPerUnit    Int @default(0)
+  /// 单日最多得多少分（null=不限）
+  dailyCap         Int?
+
+  proofRequired     ProofRequired @default(NONE)
+  /// 打卡后需要监督人确认才生效（监督打卡）
+  needsReview       Boolean      @default(false)
+  /// 允许打卡时段 {"start":"06:00","end":"10:00"}，null=全天
+  checkinWindow     Json?
+  allowBackfillDays Int           @default(0)
+  backfillPointsRatio Float       @default(0)
+
+  autoCheckinOnTimer Boolean @default(false)
+  minTimerMinutes    Int     @default(0)
+  defaultSkillId     String?
+  linkedHabitId      String?
+  visibility         Visibility   @default(CIRCLE)
+  status             HabitStatus  @default(ACTIVE)
+  countInStats       Boolean      @default(true)
+  sortOrder          Int          @default(0)
+  /// 多人共享打卡
+  collaborative      Boolean      @default(false)
+  remindAt           String?      @db.VarChar(5)
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+  archivedAt         DateTime?
+
+  circle   Circle @relation(fields: [circleId], references: [id], onDelete: Cascade)
+  owner    User   @relation("HabitOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  checkins Checkin[]
+  stats    HabitStat[]
+  sessions TimerSession[]
+
+  @@index([circleId, status])
+  @@index([ownerId])
+}
+
+/// 每人的连续天数冗余表（可重算）
+model HabitStat {
+  id            String    @id @default(cuid())
+  habitId       String
+  userId        String
+  currentStreak Int       @default(0)
+  bestStreak    Int       @default(0)
+  lastDoneDate  String?
+  totalDone     Int       @default(0)
+  updatedAt     DateTime  @updatedAt
+
+  habit Habit @relation(fields: [habitId], references: [id], onDelete: Cascade)
+
+  @@unique([habitId, userId])
+}
+
+enum CheckinStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum CheckinSource {
+  MANUAL
+  TIMER
+  BACKFILL
+  ADMIN
+}
+
+model Checkin {
+  id        String @id @default(cuid())
+  habitId   String
+  userId    String
+  /// 逻辑日期 YYYY-MM-DD（已按 dayStartHour 处理，避免时区踩坑）
+  localDate String @db.VarChar(10)
+  checkedAt DateTime @default(now())
+  /// 同日第几次
+  seq       Int      @default(1)
+  quantity  Int      @default(1)
+  note      String?  @db.Text
+  images    Json     @default("[]")
+  mood      String?  @db.VarChar(4)
+  status    CheckinStatus @default(APPROVED)
+  source    CheckinSource @default(MANUAL)
+  pointsAwarded Int  @default(0)
+
+  reviewedBy   String?
+  reviewedAt   DateTime?
+  rejectReason String?
+
+  txnId String?
+  idempotencyKey String? @unique
+  createdAt DateTime @default(now())
+
+  habit Habit @relation(fields: [habitId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([habitId, userId, localDate, seq])
+  @@index([userId, localDate])
+  @@index([habitId, localDate])
+}
+
+// ============================================================
+// 积分账本（只追加，永不修改）
+// ============================================================
+
+model Wallet {
+  id          String @id @default(cuid())
+  circleId    String
+  userId      String
+  balance     Int    @default(0)
+  totalEarned Int    @default(0)
+  totalSpent  Int    @default(0)
+  updatedAt   DateTime @updatedAt
+
+  circle Circle @relation(fields: [circleId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  txns   PointTxn[]
+
+  @@unique([circleId, userId])
+}
+
+enum TxnType {
+  EARN_CHECKIN
+  EARN_TIMER
+  EARN_BONUS
+  EARN_MANUAL
+  SPEND_REDEEM
+  REFUND
+  ADJUST
+  EXPIRE
+}
+
+model PointTxn {
+  id            String @id @default(cuid())
+  walletId      String
+  type          TxnType
+  /// 正数入账，负数出账
+  delta         Int
+  balanceBefore Int
+  balanceAfter  Int
+
+  refType String? @db.VarChar(20)
+  refId   String?
+  reason  String? @db.Text
+  operatorId String?
+
+  idempotencyKey String? @unique
+  /// 冲正时指向原流水
+  reversalOfId   String?
+  createdAt      DateTime @default(now())
+
+  wallet Wallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+  @@index([walletId, createdAt])
+  @@index([refType, refId])
+}
+
+// ============================================================
+// 奖品与兑换（含合兑）
+// ============================================================
+
+enum RewardStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  SOLD_OUT
+  ARCHIVED
+}
+
+enum FulfillmentType {
+  VIRTUAL // 虚拟：发码/称号/特权
+  PHYSICAL // 实物
+  OFFLINE // 线下领取/体验
+}
+
+model Reward {
+  id          String @id @default(cuid())
+  circleId    String
+  createdBy   String
+  title       String @db.VarChar(40)
+  description String? @db.Text
+  images      Json    @default("[]")
+  pointsCost  Int
+  /// null = 无限库存
+  stock       Int?
+  limitPerUser Int @default(1)
+  /// 每月限兑次数（null=不限）
+  limitPerPeriod Int?
+  cooldownDays Int  @default(0)
+  needApproval Boolean @default(false)
+  fulfillmentType FulfillmentType @default(OFFLINE)
+  category    String  @default("奖励") @db.VarChar(16)
+  tags        Json    @default("[]")
+  visibility  Visibility @default(CIRCLE)
+  status      RewardStatus @default(DRAFT)
+  sortWeight  Int      @default(0)
+  validFrom   DateTime?
+  validTo     DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  archivedAt  DateTime?
+
+  circle      Circle @relation(fields: [circleId], references: [id], onDelete: Cascade)
+  redemptions Redemption[]
+
+  @@index([circleId, status])
+}
+
+enum RedemptionType {
+  SINGLE
+  GROUP
+}
+
+enum RedemptionStatus {
+  OPEN // 合兑招募中
+  APPROVED // 已成立，待履约
+  FULFILLED // 已发放
+  COMPLETED // 用户确认完成
+  CANCELLED
+  REFUNDED
+  EXPIRED
+  REJECTED
+  PENDING_APPROVAL // 仅 needApproval=true 时使用
+}
+
+model Redemption {
+  id        String @id @default(cuid())
+  circleId  String
+  rewardId  String
+  type      RedemptionType   @default(SINGLE)
+  status    RedemptionStatus @default(APPROVED)
+  initiatorId String
+  /// 领取人（实物收货人），默认发起人
+  recipientId String
+  /// 下单时快照：title/pointsCost/images/fulfillmentType/description
+  snapshot  Json
+  pointsCost Int
+  /// 合兑目标分（= pointsCost），招募期用
+  raisedPoints Int @default(0)
+  expiresAt  DateTime?
+  note       String? @db.Text
+  fulfillmentInfo Json @default("{}")
+  idempotencyKey String? @unique
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  fulfilledAt DateTime?
+  closedAt   DateTime?
+
+  circle  Circle @relation(fields: [circleId], references: [id], onDelete: Cascade)
+  reward  Reward @relation(fields: [rewardId], references: [id], onDelete: Restrict)
+  initiator User @relation("RedemptionInitiator", fields: [initiatorId], references: [id], onDelete: Cascade)
+  recipient User @relation("RedemptionRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  participants RedemptionParticipant[]
+
+  @@index([circleId, status])
+  @@index([initiatorId])
+}
+
+enum ParticipantStatus {
+  PLEDGED
+  RELEASED
+}
+
+model RedemptionParticipant {
+  id           String @id @default(cuid())
+  redemptionId String
+  userId       String
+  points       Int
+  status       ParticipantStatus @default(PLEDGED)
+  joinedAt     DateTime @default(now())
+  releasedAt   DateTime?
+  txnId        String?
+
+  redemption Redemption @relation(fields: [redemptionId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([redemptionId, userId])
+  @@index([userId])
+}
+
+/// 限兑额度原子占位（总限兑 / 周期限兑）
+model RewardQuota {
+  id        String @id @default(cuid())
+  rewardId  String
+  userId    String
+  /// 周期键："all" 或 "2026-10"
+  periodKey String @default("all")
+  usedCount Int    @default(0)
+
+  @@unique([rewardId, userId, periodKey])
+}
+
+// ============================================================
+// 计时与技能
+// ============================================================
+
+enum TimerMode {
+  STOPWATCH
+  COUNTDOWN
+  POMODORO
+}
+
+enum TimerStatus {
+  RUNNING
+  PAUSED
+  COMPLETED
+  ABANDONED
+}
+
+enum Strictness {
+  LOOSE
+  STANDARD
+  STRICT
+}
+
+model TimerSession {
+  id       String @id @default(cuid())
+  userId   String
+  circleId String
+  mode     TimerMode   @default(COUNTDOWN)
+  status   TimerStatus @default(RUNNING)
+  /// 番茄模式下的阶段：FOCUS 专注 / BREAK 短休 / LONG_BREAK 长休
+  phase    String      @default("FOCUS")
+  /// 第几轮（番茄用）
+  round    Int         @default(1)
+
+  plannedSeconds Int?
+  elapsedSeconds Int      @default(0)
+  pausedTotalSeconds Int  @default(0)
+  overtimeSeconds Int     @default(0)
+  breakSeconds    Int     @default(0)
+
+  startedAt       DateTime  @default(now())
+  endedAt         DateTime?
+  lastHeartbeatAt DateTime?
+  /// 当前这次暂停是从什么时候开始的（恢复时并入 pausedTotalSeconds）
+  pausedAt        DateTime?
+
+  skillId String?
+  habitId String?
+  roomId  String?
+  strictness Strictness @default(STANDARD)
+
+  pointsAwarded Int @default(0)
+  note          String? @db.Text
+  deviceId      String?
+  revision      Int     @default(0)
+  /// 是否通过防刷校验（异常会话不进榜、不计分）
+  verified      Boolean @default(true)
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  circle Circle @relation(fields: [circleId], references: [id], onDelete: Cascade)
+  skill  Skill? @relation(fields: [skillId], references: [id])
+  habit  Habit? @relation(fields: [habitId], references: [id])
+
+  @@index([userId, status])
+  @@index([skillId, startedAt])
+  @@index([circleId, startedAt])
+}
+
+enum SkillStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+model Skill {
+  id          String @id @default(cuid())
+  circleId    String
+  ownerId     String
+  name        String @db.VarChar(20)
+  icon        String @default("🎯")
+  color       String @default("#10b981")
+  description String? @db.Text
+  targetHours Int?
+  /// [{"level":1,"hours":0},{"level":2,"hours":10}]
+  levels      Json    @default("[]")
+  totalSeconds Int    @default(0)
+  status      SkillStatus @default(ACTIVE)
+  createdAt   DateTime @default(now())
+
+  circle   Circle @relation(fields: [circleId], references: [id], onDelete: Cascade)
+  owner    User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  sessions TimerSession[]
+  creditRules CreditRule[]
+
+  @@index([circleId, status])
+}
+
+enum CreditMode {
+  TIER // 阶梯表
+  PER_MINUTE // 按分钟
+  PER_SESSION // 按次
+}
+
+/// 计时计分规则（圈子默认 + 技能覆盖）。数值全部由用户填写，系统不预置。
+model CreditRule {
+  id       String @id @default(cuid())
+  circleId String
+  scope    String @default("CIRCLE") // CIRCLE | SKILL
+  skillId  String?
+  mode     CreditMode @default(TIER)
+  /// TIER: [{"minutes":25,"points":10},{"minutes":45,"points":20}]
+  tiers    Json @default("[]")
+  minutesPerUnit Int @default(10)
+  pointsPerUnit  Int @default(1)
+  pointsPerSession Int @default(10)
+  minMinutes     Int @default(1)
+  capPerSession  Int?
+  capPerDay      Int?
+
+  circle Circle @relation(fields: [circleId], references: [id], onDelete: Cascade)
+  skill  Skill? @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@index([circleId])
+}
+
+// ============================================================
+// 自习室（V1.1）
+// ============================================================
+
+enum RoomStatus {
+  OPEN
+  CLOSED
+}
+
+model Room {
+  id        String @id @default(cuid())
+  circleId  String
+  name      String @db.VarChar(30)
+  code      String @unique @db.VarChar(6)
+  hostId    String
+  /// 时长、轮次、是否统一起止
+  settings  Json   @default("{}")
+  status    RoomStatus @default(OPEN)
+  startedAt DateTime?
+  endsAt    DateTime?
+  createdAt DateTime @default(now())
+
+  circle  Circle @relation(fields: [circleId], references: [id], onDelete: Cascade)
+  members RoomMember[]
+}
+
+model RoomMember {
+  id       String @id @default(cuid())
+  roomId   String
+  userId   String
+  state    String @default("READY") // READY | FOCUSING | BREAK | LEFT
+  joinedAt DateTime @default(now())
+
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, userId])
+}
+
+// ============================================================
+// 日程（V1.1，字段先留全，将来加同步不用迁移）
+// ============================================================
+
+enum EntryKind {
+  EVENT
+  TASK
+}
+
+enum EntryStatus {
+  PLANNED
+  DONE
+  CANCELLED
+}
+
+model Entry {
+  id       String @id @default(cuid())
+  userId   String
+  circleId String
+  kind     EntryKind @default(EVENT)
+  title    String @db.VarChar(60)
+  note     String? @db.Text
+  startAt  DateTime?
+  endAt    DateTime?
+  allDay   Boolean @default(false)
+  timezone String  @default("Asia/Shanghai")
+  /// RRULE 字符串，v1 只生成 L0 规则
+  rrule    String?
+  exdates  Json    @default("[]")
+  recurrenceId String?
+  reminders Json   @default("[0]")
+  category String  @default("默认") @db.VarChar(16)
+  color    String  @default("#6366f1")
+  linkedHabitId String?
+  linkedSkillId String?
+  estimateMin Int?
+  actualMin   Int @default(0)
+  status   EntryStatus @default(PLANNED)
+  completedAt DateTime?
+  version  Int     @default(0)
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  circle Circle @relation(fields: [circleId], references: [id], onDelete: Cascade)
+
+  @@index([userId, startAt])
+}
+
+// ============================================================
+// 通知与审计
+// ============================================================
+
+enum NotificationType {
+  HABIT_REMIND
+  MISSED
+  NUDGE
+  CHECKIN_REVIEW
+  REDEEM_UPDATE
+  REDEEM_INVITE
+  TIMER_END
+  MILESTONE
+  SYSTEM
+}
+
+model Notification {
+  id        String @id @default(cuid())
+  userId    String
+  type      NotificationType
+  title     String @db.VarChar(60)
+  body      String? @db.Text
+  link      String?
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+}
+
+model AuditLog {
+  id         String @id @default(cuid())
+  circleId   String
+  actorId    String?
+  action     String @db.VarChar(40)
+  targetType String? @db.VarChar(20)
+  targetId   String?
+  meta       Json    @default("{}")
+  createdAt  DateTime @default(now())
+
+  circle Circle @relation(fields: [circleId], references: [id], onDelete: Cascade)
+  actor  User?  @relation(fields: [actorId], references: [id])
+
+  @@index([circleId, createdAt])
+}

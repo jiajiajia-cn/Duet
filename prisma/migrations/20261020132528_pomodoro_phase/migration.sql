@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "TimerSession" ADD COLUMN     "phase" TEXT NOT NULL DEFAULT 'FOCUS',
+ADD COLUMN     "round" INTEGER NOT NULL DEFAULT 1;
