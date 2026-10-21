@@ -1,0 +1,57 @@
+# Duet 一键部署：应用 + PostgreSQL + Caddy（自动 HTTPS）
+# 用法：在项目根目录执行  docker compose up -d --build
+# 配置都放在 .env 里（首次运行 deploy/deploy.sh 会自动生成）
+
+name: duet
+
+services:
+  db:
+    image: ${POSTGRES_IMAGE:-postgres:16-alpine}
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: duet
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?缺少 DB_PASSWORD，请检查 .env}
+      POSTGRES_DB: duet
+    volumes:
+      - ./data/pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U duet -d duet"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  app:
+    build:
+      context: .
+      args:
+        BASE_IMAGE: ${BASE_IMAGE:-node:22-bookworm-slim}
+        NPM_REGISTRY: ${NPM_REGISTRY:-https://registry.npmmirror.com}
+        WITH_PG: "0"
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://duet:${DB_PASSWORD}@db:5432/duet?schema=public
+      AUTH_SECRET: ${AUTH_SECRET:?缺少 AUTH_SECRET，请检查 .env}
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+      UPLOAD_DIR: /data/uploads
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-}
+      NEXT_PUBLIC_APP_URL: ${APP_URL:-}
+    volumes:
+      - ./data/uploads:/data/uploads
+
+  caddy:
+    image: ${CADDY_IMAGE:-caddy:2-alpine}
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-:80}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./data/caddy:/data
+      - ./data/caddy-config:/config
+    depends_on:
+      - app

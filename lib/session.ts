@@ -23,7 +23,8 @@ export async function createSession(userId: string) {
     sameSite: "lax",
     path: "/",
     maxAge: MAX_AGE,
-    secure: process.env.NODE_ENV === "production",
+    // 用 IP 直连（没有 HTTPS）时要把这个关掉，否则浏览器不会带上 cookie
+    secure: process.env.COOKIE_SECURE === "false" ? false : process.env.NODE_ENV === "production",
   });
 }
 

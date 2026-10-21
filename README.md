@@ -124,20 +124,17 @@ node scripts/uishot.mjs         # 全站截图 + 控制台错误检查
 
 ## 部署到线上
 
-完整步骤见 docs/部署-CloudBase.md，核心就三步：
+**普通云服务器（推荐，阿里云/腾讯云 2 核 2G 就够）**
 
 ```bash
-# 1. 本地先验一遍镜像（可选，需要 Docker）
-docker build -t checkin .
-docker run -p 8080:8080 -v checkin-data:/data \
-  -e AUTH_SECRET=<随机串> -e LOCAL_PG=1 checkin
-
-# 2. 推到 GitHub / Gitee，在腾讯云 CloudBase 里关联仓库
-git remote add origin <你的仓库地址>
-git push -u origin main
-
-# 3. 云托管里填环境变量 + 挂载 /data 持久盘
+# 服务器上执行（Ubuntu 22.04）
+git clone <仓库地址> duet && cd duet
+sudo bash deploy/deploy.sh
 ```
+
+脚本会自动装 Docker、生成密钥、建库、跑迁移、起 Caddy。
+
+**腾讯云 CloudBase 云托管**：见 docs/部署-CloudBase.md。
 
 上线后：注册第一个账号 → 设置 → 圈子 → 复制邀请链接发给对方。
 

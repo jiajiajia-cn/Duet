@@ -1,0 +1,15 @@
+# 没有域名时：只监听 80，用 http://服务器IP 访问
+# 有域名后：把 .env 里的 SITE_ADDRESS 改成你的域名（例如 duet.example.com），
+#          Caddy 会自动申请并续期 HTTPS 证书。
+
+{$SITE_ADDRESS::80} {
+	encode zstd gzip
+
+	# 静态资源缓存久一点
+	@static path /_next/static/*
+	header @static Cache-Control "public, max-age=31536000, immutable"
+
+	reverse_proxy app:8080 {
+		header_up X-Real-IP {remote_host}
+	}
+}

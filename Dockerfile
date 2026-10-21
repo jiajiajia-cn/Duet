@@ -46,6 +46,9 @@ RUN node node_modules/prisma/build/index.js generate && npm run build
 FROM ${BASE_IMAGE} AS runner
 ARG APT_MIRROR=""
 ARG NPM_REGISTRY=""
+# WITH_PG=1 时才在镜像里装 PostgreSQL（容器内自带数据库的模式）；
+# 用 docker compose 外接 db 服务时传 0，镜像小一半、构建也快
+ARG WITH_PG="0"
 WORKDIR /app
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
@@ -54,12 +57,14 @@ ENV NODE_ENV=production \
     DATA_DIR=/data \
     UPLOAD_DIR=/data/uploads
 
-# PostgreSQL 用于「数据库也放容器里」的模式；只用外部数据库可以删掉 postgresql
 RUN if [ -n "$APT_MIRROR" ]; then \
       sed -i "s|deb.debian.org|$APT_MIRROR|g" /etc/apt/sources.list.d/debian.sources 2>/dev/null || true; \
     fi \
   && apt-get update \
-  && apt-get install -y --no-install-recommends openssl ca-certificates postgresql postgresql-client tini \
+  && apt-get install -y --no-install-recommends openssl ca-certificates tini \
+  && if [ "$WITH_PG" = "1" ]; then \
+       apt-get install -y --no-install-recommends postgresql postgresql-client; \
+     fi \
   && rm -rf /var/lib/apt/lists/*
 
 # 迁移用的 Prisma CLI 单独装一份（pnpm 的软链结构没法直接拷进容器）
