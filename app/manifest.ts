@@ -2,9 +2,9 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "签到",
-    short_name: "签到",
-    description: "习惯打卡、积分换奖品、专注计时与技能记录",
+    name: "Duet · 两个人的打卡账本",
+    short_name: "Duet",
+    description: "一起打卡、专注自习、积分换奖励",
     start_url: "/",
     display: "standalone",
     background_color: "#f4f5f9",

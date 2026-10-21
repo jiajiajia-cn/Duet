@@ -1,5 +1,5 @@
-{
-  "name": "checkin-system",
+﻿{
+  "name": "duet",
   "version": "0.1.0",
   "private": true,
   "packageManager": "pnpm@10.18.3",

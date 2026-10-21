@@ -1,4 +1,4 @@
-import type { Metadata, Viewport } from "next";
+﻿import type { Metadata, Viewport } from "next";
 import { cookies } from "next/headers";
 import "./globals.css";
 import TabBar from "@/components/TabBar";
@@ -6,9 +6,9 @@ import { getContext } from "@/lib/queries";
 import { prisma } from "@/lib/db";
 
 export const metadata: Metadata = {
-  title: "签到",
-  description: "习惯打卡、积分换奖品、专注计时与技能记录",
-  applicationName: "签到",
+  title: "Duet",
+  description: "两个人的打卡账本：一起打卡、专注自习、积分换奖励",
+  applicationName: "Duet",
   icons: {
     icon: [
       { url: "/icon.svg", type: "image/svg+xml" },
@@ -16,7 +16,7 @@ export const metadata: Metadata = {
     ],
     apple: [{ url: "/icon-192.png", sizes: "192x192" }],
   },
-  appleWebApp: { capable: true, statusBarStyle: "default", title: "签到" },
+  appleWebApp: { capable: true, statusBarStyle: "default", title: "Duet" },
 };
 
 export const viewport: Viewport = {
