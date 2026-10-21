@@ -10,12 +10,16 @@
 #     -t checkin .
 
 ARG BASE_IMAGE=node:22-bookworm-slim
+# Prisma 引擎下载走国内镜像（默认源 binaries.prisma.sh 在国内基本连不上）
+ARG PRISMA_MIRROR=https://registry.npmmirror.com/-/binary/prisma
 
 FROM ${BASE_IMAGE} AS deps
 ARG APT_MIRROR=""
 ARG NPM_REGISTRY=""
+ARG PRISMA_MIRROR
 WORKDIR /app
-ENV NEXT_TELEMETRY_DISABLED=1
+ENV NEXT_TELEMETRY_DISABLED=1 \
+    PRISMA_ENGINES_MIRROR=${PRISMA_MIRROR}
 RUN if [ -n "$APT_MIRROR" ]; then \
       sed -i "s|deb.debian.org|$APT_MIRROR|g" /etc/apt/sources.list.d/debian.sources 2>/dev/null || true; \
     fi \
@@ -30,9 +34,11 @@ RUN corepack enable \
 
 FROM ${BASE_IMAGE} AS builder
 ARG APT_MIRROR=""
+ARG PRISMA_MIRROR
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1 \
     BUILD_STANDALONE=1 \
+    PRISMA_ENGINES_MIRROR=${PRISMA_MIRROR} \
     DATABASE_URL="postgresql://postgres@127.0.0.1:5432/checkin?schema=public"
 RUN if [ -n "$APT_MIRROR" ]; then \
       sed -i "s|deb.debian.org|$APT_MIRROR|g" /etc/apt/sources.list.d/debian.sources 2>/dev/null || true; \
@@ -46,6 +52,7 @@ RUN node node_modules/prisma/build/index.js generate && npm run build
 FROM ${BASE_IMAGE} AS runner
 ARG APT_MIRROR=""
 ARG NPM_REGISTRY=""
+ARG PRISMA_MIRROR
 # WITH_PG=1 时才在镜像里装 PostgreSQL（容器内自带数据库的模式）；
 # 用 docker compose 外接 db 服务时传 0，镜像小一半、构建也快
 ARG WITH_PG="0"
@@ -55,7 +62,8 @@ ENV NODE_ENV=production \
     PORT=8080 \
     HOSTNAME=0.0.0.0 \
     DATA_DIR=/data \
-    UPLOAD_DIR=/data/uploads
+    UPLOAD_DIR=/data/uploads \
+    PRISMA_ENGINES_MIRROR=${PRISMA_MIRROR}
 
 RUN if [ -n "$APT_MIRROR" ]; then \
       sed -i "s|deb.debian.org|$APT_MIRROR|g" /etc/apt/sources.list.d/debian.sources 2>/dev/null || true; \
