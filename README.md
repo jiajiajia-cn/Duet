@@ -1,4 +1,4 @@
-# 签到 · 两个人的成长计划
+﻿# 签到 · 两个人的成长计划
 
 > 习惯打卡 · 积分换奖品（含合兑）· 专注计时 · 技能卡片 · 互相监督 · 日程 · 自习室
 > 需求文档（docs/PRD.md）里的功能，除了「推送通知」需要部署后再做，其余都实现了。
@@ -7,7 +7,9 @@
 
 ```bash
 pwsh scripts/db-start.ps1     # 起项目自带的 PostgreSQL（5433，不需要管理员）
-npm run dev                   # → http://localhost:3100
+
+npm run build && npm start    # 生产模式 → http://localhost:3100（快，日常用这个）
+npm run dev                   # 开发模式（改代码热更新，慢是正常的）
 
 node scripts/seed.mjs           # demo@checkin.local / demo1234
 node scripts/seed-history.mjs   # 3 周打卡 + 计时
@@ -119,6 +121,26 @@ node scripts/smoke-v04.mjs      # 补打卡 / 调分 / 里程碑 / 番茄 / 日�
 node scripts/uishot.mjs         # 全站截图 + 控制台错误检查
 ```
 
+## 部署到线上
+
+完整步骤见 docs/部署-CloudBase.md，核心就三步：
+
+```bash
+# 1. 本地先验一遍镜像（可选，需要 Docker）
+docker build -t checkin .
+docker run -p 8080:8080 -v checkin-data:/data \
+  -e AUTH_SECRET=<随机串> -e LOCAL_PG=1 checkin
+
+# 2. 推到 GitHub / Gitee，在腾讯云 CloudBase 里关联仓库
+git remote add origin <你的仓库地址>
+git push -u origin main
+
+# 3. 云托管里填环境变量 + 挂载 /data 持久盘
+```
+
+上线后：注册第一个账号 → 设置 → 圈子 → 复制邀请链接发给对方。
+
+清空演示数据从头开始：`node scripts/wipe-data.mjs --yes`，备份：`scripts/backup.ps1`。
 ## 技术栈
 
 Next.js 15（App Router）+ React 19 + TypeScript + Prisma 6 + PostgreSQL 18（项目自带实例，端口 5433）。

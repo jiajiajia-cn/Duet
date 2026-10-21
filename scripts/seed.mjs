@@ -1,4 +1,4 @@
-﻿// 创建一个演示账号：demo@checkin.local / demo1234
+// 创建一个演示账号：demo@checkin.local / demo1234
 // 用法：node scripts/seed.mjs
 import { PrismaClient } from "@prisma/client";
 import { randomBytes, scryptSync } from "node:crypto";

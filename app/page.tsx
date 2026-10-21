@@ -1,4 +1,4 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import Avatar from "@/components/Avatar";
 import Mascot from "@/components/Mascot";

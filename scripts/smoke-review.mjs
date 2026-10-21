@@ -1,4 +1,4 @@
-﻿// 监督打卡端到端：A 打卡变待确认 → B 确认 → 才加分
+// 监督打卡端到端：A 打卡变待确认 → B 确认 → 才加分
 // 用法：node scripts/smoke-review.mjs
 import { chromium } from "playwright-core";
 import { PrismaClient } from "@prisma/client";

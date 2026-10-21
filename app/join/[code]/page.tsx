@@ -1,4 +1,4 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 
 import { prisma } from "@/lib/db";
 import { getUserId } from "@/lib/session";

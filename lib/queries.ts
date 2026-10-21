@@ -1,4 +1,4 @@
-﻿import { redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 import { prisma } from "./db";
 import { getUserId } from "./session";
 import { localDateString, shiftDate } from "./date";

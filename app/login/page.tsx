@@ -1,4 +1,4 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import Mascot from "@/components/Mascot";
 import { loginAction } from "@/app/actions/auth";
 

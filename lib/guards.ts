@@ -1,4 +1,4 @@
-﻿import { redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 import { getUserId } from "./session";
 
 /** Server Action 里拿当前用户，没登录就跳登录页 */

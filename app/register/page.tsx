@@ -1,4 +1,4 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import { registerAction } from "@/app/actions/auth";
 
 export default async function RegisterPage({

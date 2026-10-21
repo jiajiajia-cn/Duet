@@ -1,4 +1,4 @@
-﻿// 双账号全流程测试：把"必须两个人才能完成"的功能走一遍
+// 双账号全流程测试：把"必须两个人才能完成"的功能走一遍
 // 用法：node scripts/smoke-duo.mjs
 import { chromium } from "playwright-core";
 import { PrismaClient } from "@prisma/client";

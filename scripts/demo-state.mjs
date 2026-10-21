@@ -1,4 +1,4 @@
-﻿// 把演示数据摆回"好看且真实"的状态（跑完测试后用）
+// 把演示数据摆回"好看且真实"的状态（跑完测试后用）
 // 用法：node scripts/demo-state.mjs
 import { PrismaClient } from "@prisma/client";
 import { execFileSync } from "node:child_process";

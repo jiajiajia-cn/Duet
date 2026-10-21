@@ -1,4 +1,4 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import TimerClient from "@/components/TimerClient";
 import type { ActiveSession, SkillOption } from "@/components/TimerClient";
