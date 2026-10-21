@@ -15,7 +15,7 @@ export default async function LoginPage({
         <span className="only-default">✓</span>
         <Mascot className="mascot auth-mascot" pose="hello" />
       </div>
-      <h1 className="auth-title">签到</h1>
+      <h1 className="auth-title">Duet</h1>
       <p className="auth-sub">打卡 · 计时 · 换奖励</p>
 
       <form action={loginAction} className="auth-form">

@@ -122,7 +122,7 @@ export default async function TodayPage() {
             <i style={{ width: `${progress}%` }} />
           </div>
 
-          <div>
+          <div className="habit-list">
             {rows.map((row) => (
               <div
                 key={row.id}

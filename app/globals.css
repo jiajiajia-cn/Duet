@@ -245,19 +245,26 @@ button { font: inherit; }
   min-height: 100dvh;
 }
 
-@media (min-width: 560px) {
-  .app { padding: 24px 0; }
+@media (min-width: 640px) {
+  .app { padding: 0; }
   .app-inner {
-    max-width: 420px;
-    background: var(--bg);
-    border-radius: 40px;
-    box-shadow: 0 30px 80px rgba(20, 22, 40, 0.18), 0 0 0 9px #1b1d29;
-    min-height: calc(100dvh - 48px);
-    max-height: calc(100dvh - 48px);
-    overflow-y: auto;
-    padding-top: 16px;
+    max-width: 820px;
+    padding: 24px 32px calc(104px + var(--safe));
+    min-height: 100dvh;
   }
-  .app-inner::-webkit-scrollbar { width: 0; }
+}
+
+/* 大屏：内容再放宽，习惯列表排两列 */
+@media (min-width: 1080px) {
+  .app-inner { max-width: 980px; }
+  .habit-list {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    align-items: start;
+  }
+  .habit-list .habit { margin-top: 0; }
+  .habit-list .habit-note { grid-column: 1 / -1; }
 }
 
 /* ---------- 页头 ---------- */
@@ -470,10 +477,17 @@ button { font: inherit; }
   border-top: 1px solid var(--line);
   will-change: transform;
 }
-@media (min-width: 560px) {
+@media (min-width: 640px) {
   .tabbar {
-    bottom: 24px; max-width: 420px;
-    border-radius: 0 0 31px 31px;
+    max-width: 820px;
+    border-radius: 0;
+  }
+}
+@media (min-width: 1080px) {
+  .tabbar {
+    max-width: 980px;
+    padding-left: 24px;
+    padding-right: 24px;
   }
 }
 .tab {
