@@ -1,4 +1,4 @@
-﻿# 忽略规则（项目初始化用）
+# 忽略规则（项目初始化用）
 
 # 依赖与构建产物
 node_modules/
@@ -23,7 +23,7 @@ Thumbs.db
 *.log
 logs/
 data/
-uploads/
+/public/uploads/
 backups/
 shots/
 *.sqlite
