@@ -57,6 +57,10 @@ COOKIE_SECURE=false
 
 AUTH_SECRET=${SECRET}
 DB_PASSWORD=${DBPASS}
+
+# 国内加速（容器内 apt / npm 走国内源）
+APT_MIRROR=mirrors.aliyun.com
+NPM_REGISTRY=https://registry.npmmirror.com
 EOF
   echo "    .env 已生成（AUTH_SECRET 随机）"
 fi
