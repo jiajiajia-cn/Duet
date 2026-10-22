@@ -418,7 +418,7 @@ button { font: inherit; }
   padding: 7px 14px; border-radius: 99px; background: var(--surface);
   border: 1px solid var(--line); font-size: 13px; cursor: pointer; transition: 0.15s;
 }
-.chip.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+.chip.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
 
 .row2 { display: flex; gap: 10px; }
 
@@ -1239,3 +1239,37 @@ html[data-theme="maltese"] .rbar.full i { background: #15803d; }
 /* 进度条下方留出呼吸，去掉文字后不要和库存挤在一起 */
 .rbar { margin: 10px 0 0; height: 7px; }
 .rstock { margin-top: 8px; }
+
+/* ---------- 热力图：GitHub / flomo 风格 ---------- */
+.heat {
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(7, 11px);
+  gap: 3px;
+  overflow-x: auto;
+  padding: 2px 0 4px;
+  scrollbar-width: none;
+}
+.heat::-webkit-scrollbar { display: none; }
+
+.heat i {
+  width: 11px;
+  height: 11px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--ink) 7%, transparent);
+  transition: transform 140ms var(--ease), background 140ms var(--ease);
+}
+.heat i:hover { transform: scale(1.4); }
+.heat i.l1 { background: color-mix(in srgb, var(--brand) 26%, transparent); }
+.heat i.l2 { background: color-mix(in srgb, var(--brand) 46%, transparent); }
+.heat i.l3 { background: color-mix(in srgb, var(--brand) 70%, transparent); }
+.heat i.l4 { background: var(--brand); }
+
+html[data-theme="maltese"] .heat i {
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
+  border-radius: 3px;
+}
+html[data-theme="maltese"] .heat i.l1 { background: color-mix(in srgb, var(--ink) 30%, transparent); }
+html[data-theme="maltese"] .heat i.l2 { background: color-mix(in srgb, var(--ink) 50%, transparent); }
+html[data-theme="maltese"] .heat i.l3 { background: color-mix(in srgb, var(--ink) 72%, transparent); }
+html[data-theme="maltese"] .heat i.l4 { background: var(--ink); }

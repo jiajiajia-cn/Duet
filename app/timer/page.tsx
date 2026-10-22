@@ -33,7 +33,8 @@ export default async function TimerPage() {
       orderBy: { createdAt: "asc" },
     }),
     prisma.timerSession.findMany({
-      where: { userId: ctx.user.id, status: { notIn: ["RUNNING", "PAUSED"] } },
+      // 放弃的记录不显示，免得看着闹心
+      where: { userId: ctx.user.id, status: "COMPLETED" },
       orderBy: { startedAt: "desc" },
       take: 12,
       include: { skill: { select: { name: true, icon: true } } },

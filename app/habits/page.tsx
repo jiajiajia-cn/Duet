@@ -69,10 +69,7 @@ export default async function HabitsPage() {
             <i key={c.date} className={c.level ? `l${c.level}` : ""} title={`${c.date} · ${counts.get(c.date) ?? 0} 次`} />
           ))}
         </div>
-        <div className="tiny" style={{ marginTop: 10, display: "flex", justifyContent: "space-between" }}>
-          <span>少</span>
-          <span>多</span>
-        </div>
+
       </div>
 
       <div className="section-title">
