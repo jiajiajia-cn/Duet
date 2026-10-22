@@ -2,12 +2,13 @@ import { redirect } from "next/navigation";
 import { prisma } from "./db";
 import { getUserId } from "./session";
 import { localDateString, shiftDate } from "./date";
+import { isDueToday, weekStartDate, type Freq } from "./frequency";
 import type { HabitRow } from "./types";
 
 export { requireUserId } from "./guards";
 
 export type Context = {
-  user: { id: string; nickname: string; avatarUrl: string | null; timezone: string; dayStartHour: number };
+  user: { id: string; nickname: string; avatarUrl: string | null; timezone: string; dayStartHour: number; weekStart: number };
   circle: { id: string; name: string; inviteCode: string; settings: unknown };
   role: string;
 };
@@ -24,6 +25,7 @@ export async function getContext(): Promise<Context | null> {
       avatarUrl: true,
       timezone: true,
       dayStartHour: true,
+      weekStart: true,
       activeCircleId: true,
     },
   });
@@ -59,7 +61,9 @@ export async function getToday() {
 
   const today = localDateString(ctx.user.timezone, ctx.user.dayStartHour);
 
-  const [habits, checkins, wallet, stats, teamCheckins, memberTotal] = await Promise.all([
+  const weekStart = weekStartDate(today, ctx.user.weekStart ?? 1);
+
+  const [habits, checkins, wallet, stats, teamCheckins, memberTotal, weekDone] = await Promise.all([
     prisma.habit.findMany({
       where: {
         circleId: ctx.circle.id,
@@ -85,7 +89,18 @@ export async function getToday() {
       select: { habitId: true, userId: true },
     }),
     prisma.circleMember.count({ where: { circleId: ctx.circle.id, status: "ACTIVE" } }),
+    prisma.checkin.groupBy({
+      by: ["habitId"],
+      where: {
+        userId: ctx.user.id,
+        localDate: { gte: weekStart, lte: today },
+        status: { in: ["APPROVED", "PENDING"] },
+      },
+      _count: { _all: true },
+    }),
   ]);
+
+  const weekMap = new Map(weekDone.map((w) => [w.habitId, w._count._all]));
 
   const doneMap = new Map(checkins.map((c) => [c.habitId, c]));
   const statMap = new Map(stats.map((s) => [s.habitId, s]));
@@ -97,7 +112,11 @@ export async function getToday() {
     teamDone.set(c.habitId, set);
   }
 
-  const rows: HabitRow[] = habits.map((h) => {
+  const dueHabits = habits.filter((h) =>
+    isDueToday(h.frequency as Freq, today, weekMap.get(h.id) ?? 0),
+  );
+
+  const rows: HabitRow[] = dueHabits.map((h) => {
     const done = doneMap.get(h.id);
     const stat = statMap.get(h.id);
     const isQuantity = h.type === "QUANTITY";

@@ -6,6 +6,7 @@ import { localDateString, shiftDate } from "@/lib/date";
 import { requireUserId } from "@/lib/queries";
 import { awardMilestone } from "@/lib/milestone";
 import { awardTeamIfComplete } from "@/lib/team";
+import { isDueToday, weekStartDate, type Freq } from "@/lib/frequency";
 
 /**
  * 打卡。
@@ -31,6 +32,21 @@ export async function checkInAction(formData: FormData) {
 
   const today = localDateString(user.timezone, user.dayStartHour);
   const yesterday = shiftDate(today, -1);
+
+  // 今天本来就不该做这件事（频率不匹配）→ 直接忽略
+  {
+    const freq = (habit.frequency ?? { kind: "daily" }) as Freq;
+    const weekStart = weekStartDate(today, user.weekStart ?? 1);
+    const doneThisWeek = await prisma.checkin.count({
+      where: {
+        habitId,
+        userId,
+        localDate: { gte: weekStart, lte: today },
+        status: { in: ["APPROVED", "PENDING"] },
+      },
+    });
+    if (!isDueToday(freq, today, doneThisWeek)) return;
+  }
 
   const existing = await prisma.checkin.findFirst({
     where: { habitId, userId, localDate: today },

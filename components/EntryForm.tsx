@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
 import type { Entry } from "@prisma/client";
 import { dateOf, parseRepeat, timeOf } from "@/lib/schedule";
@@ -26,6 +29,7 @@ export default function EntryForm({
   const rep = parseRepeat(entry?.rrule ?? null);
   const days = rep.days ?? [1];
   const date = entry?.startAt ? dateOf(entry.startAt) : "";
+  const [repeatKind, setRepeatKind] = useState<string>(rep.kind ?? "none");
 
   return (
     <form action={action} className="stack">
@@ -65,22 +69,29 @@ export default function EntryForm({
       <div className="card" style={{ padding: 12 }}>
         <b style={{ fontSize: 14 }}>重复</b>
         <label className="field" style={{ marginTop: 8 }}>
-          <select name="repeatKind" defaultValue={rep.kind ?? "none"}>
+          <select name="repeatKind" value={repeatKind} onChange={(e) => setRepeatKind(e.target.value)}>
             <option value="none">不重复</option>
             <option value="daily">每天</option>
             <option value="weekly">每周</option>
             <option value="monthly">每月同一天</option>
           </select>
         </label>
-        <div className="tiny" style={{ margin: "10px 0 6px" }}>每周的哪几天（选「每周」时生效）</div>
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-          {WEEK.map((d) => (
-            <label key={d.v} className="chip" style={{ display: "flex", alignItems: "center", gap: 4 }}>
-              <input type="checkbox" name="repDays" value={d.v} defaultChecked={days.includes(d.v)} />
-              {d.t}
-            </label>
-          ))}
-        </div>
+        {repeatKind === "weekly" ? (
+          <>
+            <div className="tiny" style={{ margin: "10px 0 6px" }}>每周的哪几天</div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {WEEK.map((d) => (
+                <label key={d.v} className="chip" style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                  <input type="checkbox" name="repDays" value={d.v} defaultChecked={days.includes(d.v)} />
+                  {d.t}
+                </label>
+              ))}
+            </div>
+          </>
+        ) : null}
+        {repeatKind === "monthly" ? (
+          <div className="tiny" style={{ marginTop: 8 }}>每月同一天，按开始日期算。</div>
+        ) : null}
       </div>
 
       <label className="field">
