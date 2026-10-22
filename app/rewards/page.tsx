@@ -113,15 +113,21 @@ export default async function RewardsPage({
         </div>
       )}
 
+      <Link href="/rewards/new" className="btn" style={{ marginTop: 16 }}>
+        ＋ 上架一个奖品
+      </Link>
+
       <div className="section-title">
         <b>管理</b>
       </div>
-      <Link href="/admin/rewards" className="btn ghost">
-        奖品管理（上架 / 编辑 / 归档）
-      </Link>
-      <Link href="/orders" className="btn ghost" style={{ marginTop: 10 }}>
+      <Link href="/orders" className="btn ghost">
         我的兑换
       </Link>
+      {ctx.role === "OWNER" || ctx.role === "ADMIN" ? (
+        <Link href="/admin/rewards" className="btn ghost" style={{ marginTop: 10 }}>
+          全部奖品（编辑 / 归档）
+        </Link>
+      ) : null}
     </>
   );
 }

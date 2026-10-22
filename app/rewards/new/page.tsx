@@ -12,7 +12,6 @@ export default async function NewRewardPage({
 }) {
   const ctx = await getContext();
   if (!ctx) redirect("/login");
-  if (ctx.role !== "OWNER" && ctx.role !== "ADMIN") redirect("/rewards");
 
   const { error } = await searchParams;
   const rows = await prisma.reward.findMany({

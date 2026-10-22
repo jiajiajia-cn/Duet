@@ -61,9 +61,11 @@ export default async function RewardDetailPage({
         <Link href="/rewards" className="tiny">
           ‹ 返回
         </Link>
-        <Link href={`/rewards/${id}/edit`} className="tiny" style={{ marginLeft: "auto" }}>
-          编辑
-        </Link>
+        {ctx.role === "OWNER" || ctx.role === "ADMIN" || reward.createdBy === ctx.user.id ? (
+          <Link href={`/rewards/${id}/edit`} className="tiny" style={{ marginLeft: "auto" }}>
+            编辑
+          </Link>
+        ) : null}
       </header>
 
       {error ? <div className="alert" style={{ marginBottom: 12 }}>{error}</div> : null}

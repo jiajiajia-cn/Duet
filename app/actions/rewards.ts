@@ -23,15 +23,29 @@ function intOrNull(v: FormDataEntryValue | null): number | null {
   return Number.isFinite(n) ? Math.trunc(n) : null;
 }
 
-async function requireAdmin() {
+async function requireMember() {
   const ctx = await getContext();
   if (!ctx) redirect("/login");
-  if (ctx.role !== "OWNER" && ctx.role !== "ADMIN") redirect("/rewards?error=" + encodeURIComponent("只有圈主能管理奖品"));
   return ctx;
 }
 
+function isManager(role: string) {
+  return role === "OWNER" || role === "ADMIN";
+}
+
+/** 只有圈主、或者奖品是自己建的，才能改 */
+async function requireRewardEditor(id: string) {
+  const ctx = await requireMember();
+  const reward = await prisma.reward.findFirst({ where: { id, circleId: ctx.circle.id } });
+  if (!reward) redirect("/rewards");
+  if (!isManager(ctx.role) && reward.createdBy !== ctx.user.id) {
+    redirect("/rewards?error=" + encodeURIComponent("只能改自己上架的奖品"));
+  }
+  return { ctx, reward };
+}
+
 export async function createRewardAction(formData: FormData) {
-  const ctx = await requireAdmin();
+  const ctx = await requireMember();
 
   const title = String(formData.get("title") ?? "").trim();
   const pointsCost = num(formData.get("pointsCost"));
@@ -71,10 +85,8 @@ export async function createRewardAction(formData: FormData) {
 }
 
 export async function updateRewardAction(formData: FormData) {
-  const ctx = await requireAdmin();
   const id = String(formData.get("id") ?? "");
-  const reward = await prisma.reward.findFirst({ where: { id, circleId: ctx.circle.id } });
-  if (!reward) redirect("/admin/rewards");
+  const { ctx, reward } = await requireRewardEditor(id);
 
   const file = pickImage(formData);
   let images = reward.images as string[];
@@ -103,15 +115,15 @@ export async function updateRewardAction(formData: FormData) {
 
   revalidatePath("/rewards");
   revalidatePath("/admin/rewards");
-  redirect("/admin/rewards?ok=" + encodeURIComponent("已保存"));
+  redirect("/rewards?ok=" + encodeURIComponent("已保存"));
 }
 
 export async function setRewardStatusAction(formData: FormData) {
-  const ctx = await requireAdmin();
   const id = String(formData.get("id") ?? "");
+  const { ctx } = await requireRewardEditor(id);
   const status = String(formData.get("status") ?? "");
   const allowed = ["ACTIVE", "PAUSED", "ARCHIVED", "DRAFT"];
-  if (!allowed.includes(status)) redirect("/admin/rewards");
+  if (!allowed.includes(status)) redirect("/rewards");
 
   await prisma.reward.updateMany({
     where: { id, circleId: ctx.circle.id },
@@ -123,5 +135,5 @@ export async function setRewardStatusAction(formData: FormData) {
 
   revalidatePath("/rewards");
   revalidatePath("/admin/rewards");
-  redirect("/admin/rewards?ok=" + encodeURIComponent(status === "ARCHIVED" ? "已归档" : "已更新"));
+  redirect("/rewards?ok=" + encodeURIComponent(status === "ARCHIVED" ? "已归档" : "已更新"));
 }

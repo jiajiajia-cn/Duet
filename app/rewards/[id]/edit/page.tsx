@@ -14,13 +14,15 @@ export default async function EditRewardPage({
 }) {
   const ctx = await getContext();
   if (!ctx) redirect("/login");
-  if (ctx.role !== "OWNER" && ctx.role !== "ADMIN") redirect("/rewards");
 
   const { id } = await params;
   const { error } = await searchParams;
 
   const reward = await prisma.reward.findFirst({ where: { id, circleId: ctx.circle.id } });
-  if (!reward) redirect("/admin/rewards");
+  if (!reward) redirect("/rewards");
+  if (ctx.role !== "OWNER" && ctx.role !== "ADMIN" && reward.createdBy !== ctx.user.id) {
+    redirect("/rewards?error=" + encodeURIComponent("只能改自己上架的奖品"));
+  }
 
   const rows = await prisma.reward.findMany({
     where: { circleId: ctx.circle.id },
