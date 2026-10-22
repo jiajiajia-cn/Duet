@@ -98,24 +98,19 @@ export default async function RewardsPage({
                     {r.pointsCost.toLocaleString()} <small>分</small>
                   </div>
 
-                  {(() => {
-                    const full = balance >= r.pointsCost;
-                    const ratio = Math.min(1, r.pointsCost > 0 ? balance / r.pointsCost : 1);
-                    return (
-                      <>
-                        <div className={`rbar${full ? " full" : ""}`} aria-hidden="true">
-                          <i style={{ width: `${Math.round(ratio * 100)}%` }} />
-                        </div>
-                        <div className={`tiny rstate${full ? " full" : ""}`}>
-                          {full ? "已够，可以换" : `还差 ${short.toLocaleString()} 分`}
-                          <span className="rnum">
-                            {Math.min(balance, r.pointsCost).toLocaleString()}/{r.pointsCost.toLocaleString()}
-                          </span>
-                        </div>
-                        <div className="tiny rstock">{r.stock == null ? "不限量" : `剩 ${r.stock} 份`}</div>
-                      </>
-                    );
-                  })()}
+                  <div
+                    className={`rbar${balance >= r.pointsCost ? " full" : ""}`}
+                    aria-hidden="true"
+                  >
+                    <i
+                      style={{
+                        width: `${Math.round(
+                          Math.min(1, r.pointsCost > 0 ? balance / r.pointsCost : 1) * 100,
+                        )}%`,
+                      }}
+                    />
+                  </div>
+                  <div className="tiny rstock">{r.stock == null ? "不限量" : `剩 ${r.stock} 份`}</div>
                 </div>
               </Link>
             );

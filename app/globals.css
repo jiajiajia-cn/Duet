@@ -1235,3 +1235,7 @@ html[data-theme="maltese"] .rbar {
 }
 html[data-theme="maltese"] .rbar i { background: var(--ink); }
 html[data-theme="maltese"] .rbar.full i { background: #15803d; }
+
+/* 进度条下方留出呼吸，去掉文字后不要和库存挤在一起 */
+.rbar { margin: 10px 0 0; height: 7px; }
+.rstock { margin-top: 8px; }
