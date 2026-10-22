@@ -257,11 +257,14 @@ button { font: inherit; }
 /* 大屏：内容再放宽，习惯列表排两列 */
 @media (min-width: 1080px) {
   .app-inner { max-width: 980px; }
+  /* auto-fit：只有一条习惯时它自己占满整行，不会缩在左边半格里 */
   .habit-list {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+    gap: 12px;
     align-items: start;
+    /* 和上面的进度条拉开距离，不要贴在一起 */
+    margin-top: 14px;
   }
   .habit-list .habit { margin-top: 0; }
   .habit-list .habit-note { grid-column: 1 / -1; }
