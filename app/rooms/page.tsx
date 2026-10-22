@@ -24,7 +24,7 @@ export default async function RoomsPage({
 
   return (
     <>
-      <Header title="自习室" sub="一起专注，各自记录" avatar={ctx.user.nickname.slice(0, 1)} />
+      <Header title="自习室" sub="一起专注，各自记录" avatar={ctx.user.nickname.slice(0, 1)} back={{ href: "/", label: "今天" }} />
 
       {error ? <div className="alert" style={{ marginBottom: 12 }}>{error}</div> : null}
 

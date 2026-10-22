@@ -1159,3 +1159,76 @@ html[data-theme="maltese"] .tabbar {
 html[data-theme="dark"] .tabbar {
   background: var(--card);
 }
+
+/* 快捷入口改成四个：图标+标签依旧留足间距 */
+.quick-row {
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+.quick {
+  padding: 14px 6px 12px;
+  text-align: center;
+}
+.quick .qi { font-size: 21px; margin-bottom: 8px; }
+.quick .qt { font-size: 12.5px; }
+.quick .qs { font-size: 10.5px; margin-top: 2px; }
+.quick .badge {
+  position: absolute;
+  top: -6px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  font-size: 10px;
+  line-height: 18px;
+  border-radius: 9px;
+}
+
+/* 计时 / 自习室页面：底部多留一点，避免被底栏压住 */
+.timer-page, .rooms-page { padding-bottom: 20px; }
+
+/* ---------- 奖品卡上的积分进度 ---------- */
+.rbar {
+  margin: 8px 0 6px;
+  height: 6px;
+  border-radius: 99px;
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
+  overflow: hidden;
+}
+.rbar i {
+  display: block;
+  height: 100%;
+  border-radius: 99px;
+  background: linear-gradient(90deg, var(--brand), color-mix(in srgb, var(--brand) 55%, #ffffff));
+  transition: width 500ms var(--ease);
+}
+.rbar.full i {
+  background: linear-gradient(90deg, #16a34a, #4ade80);
+}
+.rstate {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink3);
+}
+.rstate.full { color: #15803d; }
+.rnum {
+  font-variant-numeric: tabular-nums;
+  color: var(--ink3);
+  font-weight: 500;
+  opacity: 0.8;
+}
+.rstock {
+  margin-top: 3px;
+  font-size: 10.5px;
+  opacity: 0.75;
+}
+html[data-theme="maltese"] .rbar {
+  border: 1.5px solid var(--ink);
+  background: #fff;
+  height: 8px;
+}
+html[data-theme="maltese"] .rbar i { background: var(--ink); }
+html[data-theme="maltese"] .rbar.full i { background: #15803d; }

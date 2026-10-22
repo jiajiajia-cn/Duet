@@ -91,6 +91,9 @@ export default async function TimerPage() {
     <>
       <header className="header">
         <div>
+          <Link href="/" className="tiny" style={{ display: "inline-block", marginBottom: 2 }}>
+            ‹ 今天
+          </Link>
           <h1>计时</h1>
         </div>
         <Link href="/settings/credit" className="tiny" style={{ marginLeft: "auto", color: "var(--brand)", fontWeight: 700 }}>

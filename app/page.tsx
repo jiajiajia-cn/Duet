@@ -16,7 +16,7 @@ export default async function TodayPage() {
   const doneCount = rows.filter((r) => r.done).length;
   const progress = rows.length ? Math.round((doneCount / rows.length) * 100) : 0;
 
-  const [pending, rooms, entries] = await Promise.all([
+  const [pending, rooms, entries, activeTimer] = await Promise.all([
     prisma.checkin.findMany({
       where: { habit: { circleId: ctx.circle.id }, status: "PENDING", userId: { not: ctx.user.id } },
       include: { user: { select: { nickname: true } } },
@@ -27,6 +27,10 @@ export default async function TodayPage() {
     prisma.entry.findMany({
       where: { userId: ctx.user.id, status: { not: "CANCELLED" } },
       select: { startAt: true, rrule: true },
+    }),
+    prisma.timerSession.findFirst({
+      where: { userId: ctx.user.id, status: { in: ["RUNNING", "PAUSED"] } },
+      select: { id: true, status: true },
     }),
   ]);
 
@@ -83,6 +87,14 @@ export default async function TodayPage() {
           <div className="qt">待确认</div>
           <div className="qs">{pending.length ? `${pending.length} 条` : "没有"}</div>
           {pending.length ? <span className="badge">{pending.length}</span> : null}
+        </Link>
+        <Link href="/timer" className="quick">
+          <div className="qi">⏱️</div>
+          <div className="qt">计时</div>
+          <div className="qs">
+            {activeTimer ? (activeTimer.status === "PAUSED" ? "已暂停" : "进行中") : "开始专注"}
+          </div>
+          {activeTimer ? <span className="badge" style={{ background: "#16a34a" }}>·</span> : null}
         </Link>
         <Link href="/rooms" className="quick">
           <div className="qi">👥</div>
