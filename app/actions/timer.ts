@@ -6,6 +6,9 @@ import { prisma } from "@/lib/db";
 import { getContext } from "@/lib/queries";
 import { elapsedSecondsOf, pointsFor, resolveCreditRule } from "@/lib/credit";
 import { localDateString } from "@/lib/date";
+import { isDueToday, weekStartDate, type Freq } from "@/lib/frequency";
+import { recomputeStreak } from "@/lib/makeup";
+import { awardTeamIfComplete } from "@/lib/team";
 
 async function ctxOrThrow() {
   const ctx = await getContext();
@@ -150,10 +153,23 @@ export async function finishTimer(sessionId: string, abandon = false) {
     s.habit.autoCheckinOnTimer &&
     minutes >= s.habit.minTimerMinutes
   ) {
-    const exists = await prisma.checkin.findFirst({
-      where: { habitId: s.habit.id, userId: ctx.user.id, localDate: todayStr },
-    });
-    willAutoCheckin = !exists;
+    const freq = (s.habit.frequency ?? { kind: "daily" }) as Freq;
+    const weekStart = weekStartDate(todayStr, ctx.user.weekStart ?? 1);
+    const [exists, doneThisWeek] = await Promise.all([
+      prisma.checkin.findFirst({
+        where: { habitId: s.habit.id, userId: ctx.user.id, localDate: todayStr },
+      }),
+      prisma.checkin.count({
+        where: {
+          habitId: s.habit.id,
+          userId: ctx.user.id,
+          localDate: { gte: weekStart, lte: todayStr },
+          status: { in: ["APPROVED", "PENDING"] },
+        },
+      }),
+    ]);
+    // 今天本来不该做这个习惯（频率不匹配）就不自动打卡
+    willAutoCheckin = !exists && isDueToday(freq, todayStr, doneThisWeek);
   }
   if (willAutoCheckin) points = 0;
 
@@ -222,19 +238,24 @@ export async function finishTimer(sessionId: string, abandon = false) {
     }
 
     // 计时型习惯：达标自动打卡
-    if (
-      completed &&
-      s.habit &&
-      s.habit.type === "TIMED" &&
-      s.habit.autoCheckinOnTimer &&
-      minutes >= s.habit.minTimerMinutes
-    ) {
-      const today = localDateString(ctx.user.timezone, ctx.user.dayStartHour);
+    if (willAutoCheckin && s.habit) {
+      const today = todayStr;
       const exists = await tx.checkin.findFirst({
         where: { habitId: s.habit.id, userId: ctx.user.id, localDate: today },
       });
+
       if (!exists) {
-        const habitPoints = s.habit.pointsPerCheckin;
+        // 习惯自己的单日上限也要遵守
+        let habitPoints = s.habit.pointsPerCheckin;
+        if (s.habit.dailyCap != null && habitPoints > 0) {
+          const sum = await tx.checkin.aggregate({
+            where: { habitId: s.habit.id, userId: ctx.user.id, localDate: today },
+            _sum: { pointsAwarded: true },
+          });
+          const used = sum._sum.pointsAwarded ?? 0;
+          habitPoints = Math.max(0, Math.min(habitPoints, s.habit.dailyCap - used));
+        }
+
         await tx.checkin.create({
           data: {
             habitId: s.habit.id,
@@ -246,6 +267,7 @@ export async function finishTimer(sessionId: string, abandon = false) {
             pointsAwarded: habitPoints,
           },
         });
+
         if (habitPoints > 0) {
           const w2 = await tx.wallet.update({
             where: { circleId_userId: { circleId: ctx.circle.id, userId: ctx.user.id } },
@@ -264,6 +286,15 @@ export async function finishTimer(sessionId: string, abandon = false) {
             },
           });
         }
+
+        // 连续天数（之前漏了，导致计时打卡不涨连续）
+        await recomputeStreak(tx, s.habit.id, ctx.user.id, today);
+
+        // 一起打卡的习惯：对方打过卡的话，这里要结算
+        if (s.habit.collaborative) {
+          await awardTeamIfComplete(tx, { habit: s.habit, date: today, circleId: ctx.circle.id });
+        }
+
         autoCheckin = true;
       }
     }

@@ -199,7 +199,7 @@ export default function TimerClient({
               setNotify(s);
             }}
           >
-            🔔 开启结束提醒
+            🔔 开启提醒
           </button>
         )}
       </div>

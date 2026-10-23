@@ -13,7 +13,10 @@ const DEMO_BALANCE = 2000;
 const YU_BALANCE = 1200;
 
 async function get(path, user) {
-  return fetch(BASE + path, { headers: { cookie: cookieOf(user) }, redirect: "manual" });
+  const res = await fetch(BASE + path, { headers: { cookie: cookieOf(user) }, redirect: "manual" });
+  // 页面是流式渲染的，必须读完 body，服务端的副作用（比如惰性过期）才会执行完
+  const body = await res.text();
+  return { ...res, text: async () => body, status: res.status, headers: res.headers };
 }
 
 /** 找到"表格里包含某个字段=某个值"的那个 form，返回它的 server action id */
