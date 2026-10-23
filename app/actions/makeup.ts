@@ -74,7 +74,8 @@ export async function buyMakeupCardAction() {
     if (e instanceof BizError) {
       redirect("/rewards?error=" + encodeURIComponent(e.message));
     }
-    throw e;
+    // 数据库还没建表之类的异常，别把整页打崩
+    redirect("/rewards?error=" + encodeURIComponent("暂时用不了补签卡，请稍后再试"));
   }
 
   revalidatePath("/rewards");
@@ -139,7 +140,7 @@ export async function useMakeupCardAction(formData: FormData) {
     if (e instanceof BizError) {
       redirect("/makeup?error=" + encodeURIComponent(e.message));
     }
-    throw e;
+    redirect("/makeup?error=" + encodeURIComponent("补签失败，请稍后再试"));
   }
 
   revalidatePath("/");

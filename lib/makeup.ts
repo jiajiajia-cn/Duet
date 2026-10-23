@@ -13,9 +13,13 @@ export function makeupPrice(settings: unknown): number {
   return Number.isFinite(n) && n > 0 ? Math.trunc(n) : 0;
 }
 
-/** 我手上还有几张没用 */
+/** 我手上还有几张没用（表还没建好时不影响页面其他部分） */
 export async function unusedCards(circleId: string, userId: string) {
-  return prisma.makeupCard.count({ where: { circleId, userId, usedAt: null } });
+  try {
+    return await prisma.makeupCard.count({ where: { circleId, userId, usedAt: null } });
+  } catch {
+    return 0;
+  }
 }
 
 /**
@@ -29,6 +33,12 @@ export async function missedDays(opts: {
   days?: number;
 }) {
   const { circleId, userId, today, days = 7 } = opts;
+
+  try {
+    await prisma.makeupCard.count({ where: { circleId, userId } });
+  } catch {
+    return [];
+  }
 
   const habits = await prisma.habit.findMany({
     where: {
