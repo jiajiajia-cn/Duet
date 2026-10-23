@@ -1,8 +1,16 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Mascot from "@/components/Mascot";
+import {
+  askNotifyPermission,
+  flashTitle,
+  notifyState,
+  playAlarm,
+  sendNotification,
+  unlockAudio,
+} from "@/lib/alarm";
 import { startTimer, pauseTimer, resumeTimer, finishTimer } from "@/app/actions/timer";
 
 export type ActiveSession = {
@@ -51,10 +59,16 @@ export default function TimerClient({
   const [habitId, setHabitId] = useState<string>("");
   const [toast, setToast] = useState<string | null>(null);
   const [next, setNext] = useState<{ phase: "FOCUS" | "BREAK" | "LONG_BREAK"; minutes: number; round: number } | null>(null);
+  const [notify, setNotify] = useState<string>("default");
+  const firedRef = useRef<string | null>(null);
 
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
+  }, []);
+
+  useEffect(() => {
+    setNotify(notifyState());
   }, []);
 
   const elapsed = useMemo(() => {
@@ -67,6 +81,19 @@ export default function TimerClient({
 
   const planned = active?.plannedSeconds ?? 0;
   const remaining = planned ? planned - elapsed : 0;
+
+  // 到点了：响铃 + 标题闪烁 + 系统通知（后者要 HTTPS 才会真正弹）
+  useEffect(() => {
+    if (!active || active.mode === "STOPWATCH") return;
+    if (active.status !== "RUNNING") return;
+    if (!planned || remaining > 0) return;
+    if (firedRef.current === active.id) return;
+
+    firedRef.current = active.id;
+    playAlarm(3);
+    flashTitle("⏰ 时间到");
+    sendNotification("专注结束", `${active.skillName ?? "这段时间"}已完成`, active.id);
+  }, [active, planned, remaining]);
   const overtime = planned && remaining < 0 ? -remaining : 0;
   const shown = active
     ? active.mode === "STOPWATCH"
@@ -85,6 +112,7 @@ export default function TimerClient({
   }
 
   function run(fn: () => Promise<void>) {
+    unlockAudio();
     startTransition(async () => {
       await fn();
       router.refresh();
@@ -150,6 +178,30 @@ export default function TimerClient({
             </div>
           </div>
         </div>
+      </div>
+
+      <div style={{ textAlign: "center", marginTop: -4, marginBottom: 10 }}>
+        {notify === "granted" ? (
+          <span className="tiny">🔔 结束时会弹系统通知</span>
+        ) : notify === "insecure" ? (
+          <span className="tiny">🔔 结束后会响铃 + 标题闪烁（上 HTTPS 后才能弹系统通知）</span>
+        ) : notify === "unsupported" ? (
+          <span className="tiny">🔔 结束后会响铃 + 标题闪烁</span>
+        ) : notify === "denied" ? (
+          <span className="tiny">🔔 通知被拒绝，结束时会响铃</span>
+        ) : (
+          <button
+            type="button"
+            className="chip"
+            onClick={async () => {
+              unlockAudio();
+              const s = await askNotifyPermission();
+              setNotify(s);
+            }}
+          >
+            🔔 开启结束提醒
+          </button>
+        )}
       </div>
 
       {!active ? (

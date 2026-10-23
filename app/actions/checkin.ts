@@ -1,12 +1,15 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { localDateString, shiftDate } from "@/lib/date";
 import { requireUserId } from "@/lib/queries";
 import { awardMilestone } from "@/lib/milestone";
 import { awardTeamIfComplete } from "@/lib/team";
 import { isDueToday, weekStartDate, type Freq } from "@/lib/frequency";
+import { recomputeStreak } from "@/lib/makeup";
+import { getContext } from "@/lib/queries";
 
 /**
  * 打卡。
@@ -426,4 +429,57 @@ export async function seedDemoAction() {
 
   revalidatePath("/");
   revalidatePath("/habits");
+}
+
+/** 删除某一条打卡记录（修正误打），回滚积分并重算连续天数 */
+export async function deleteCheckinAction(formData: FormData) {
+  const ctx = await getContext();
+  if (!ctx) redirect("/login");
+
+  const checkinId = String(formData.get("checkinId") ?? "");
+  const backTo = String(formData.get("backTo") ?? "/habits");
+
+  const row = await prisma.checkin.findUnique({
+    where: { id: checkinId },
+    include: { habit: { select: { id: true, title: true, circleId: true, ownerId: true } } },
+  });
+  if (!row || row.habit.circleId !== ctx.circle.id) {
+    redirect(backTo + "?error=" + encodeURIComponent("记录不存在"));
+  }
+
+  const isManager = ctx.role === "OWNER" || ctx.role === "ADMIN";
+  if (row.userId !== ctx.user.id && !isManager) {
+    redirect(backTo + "?error=" + encodeURIComponent("只能删自己的记录"));
+  }
+
+  await prisma.$transaction(async (tx) => {
+    if (row.pointsAwarded > 0) {
+      const w = await tx.wallet.update({
+        where: { circleId_userId: { circleId: row.habit.circleId, userId: row.userId } },
+        data: { balance: { decrement: row.pointsAwarded }, totalEarned: { decrement: row.pointsAwarded } },
+      });
+      await tx.pointTxn.create({
+        data: {
+          walletId: w.id,
+          type: "ADJUST",
+          delta: -row.pointsAwarded,
+          balanceBefore: w.balance + row.pointsAwarded,
+          balanceAfter: w.balance,
+          refType: "checkin",
+          refId: row.id,
+          reason: `删除记录：${row.habit.title}`,
+        },
+      });
+    }
+
+    await tx.checkin.delete({ where: { id: row.id } });
+
+    const today = localDateString(ctx.user.timezone, ctx.user.dayStartHour);
+    await recomputeStreak(tx, row.habit.id, row.userId, today);
+  });
+
+  revalidatePath("/");
+  revalidatePath("/habits");
+  revalidatePath(backTo);
+  redirect(backTo + "?ok=" + encodeURIComponent("已删除这条记录"));
 }

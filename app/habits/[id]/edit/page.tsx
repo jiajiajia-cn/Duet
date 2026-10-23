@@ -61,6 +61,10 @@ export default async function EditHabitPage({
         </div>
       </div>
 
+      <Link href={`/habits/${id}/records`} className="btn ghost" style={{ marginBottom: 12 }}>
+        打卡记录（可以删掉误打的）
+      </Link>
+
       <HabitForm
         action={updateHabitAction}
         defaults={habitDefaultsOf(habit)}
