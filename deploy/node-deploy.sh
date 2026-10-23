@@ -61,7 +61,11 @@ npm install --no-audit --no-fund
 
 echo "==> 生成 Prisma Client + 应用数据库迁移"
 npx prisma generate
-npx prisma migrate deploy
+set -a
+# shellcheck disable=SC1091
+. ./.env.node
+set +a
+node node_modules/prisma/build/index.js migrate deploy
 
 # ---------- 5. 构建 ----------
 echo "==> 编译 Next.js"
