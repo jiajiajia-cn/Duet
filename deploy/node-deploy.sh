@@ -59,8 +59,9 @@ echo "==> 安装依赖（npmmirror）"
 npm config set registry https://registry.npmmirror.com
 npm install --no-audit --no-fund
 
-echo "==> 生成 Prisma Client"
+echo "==> 生成 Prisma Client + 应用数据库迁移"
 npx prisma generate
+npx prisma migrate deploy
 
 # ---------- 5. 构建 ----------
 echo "==> 编译 Next.js"

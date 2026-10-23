@@ -7,6 +7,10 @@ Wants=docker.service
 Type=simple
 WorkingDirectory=/root/Duet
 EnvironmentFile=/root/Duet/.env.node
+
+# 每次启动先把数据库迁移跑到最新，避免「代码更新了表还没建」
+ExecStartPre=/opt/node/bin/node node_modules/prisma/build/index.js migrate deploy
+
 ExecStart=/opt/node/bin/node node_modules/next/dist/bin/next start -p 80
 Restart=always
 RestartSec=3

@@ -47,7 +47,7 @@ RUN if [ -n "$APT_MIRROR" ]; then \
   && rm -rf /var/lib/apt/lists/*
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN node node_modules/prisma/build/index.js generate && npm run build
+RUN npm run build
 
 FROM ${BASE_IMAGE} AS runner
 ARG APT_MIRROR=""
