@@ -29,6 +29,15 @@ export default async function MePage() {
     <>
       <Header title="我的" sub={`${skills.length} 个技能`} avatar={ctx.user.nickname.slice(0, 1)} />
 
+      <Link href="/report" className="settings-row" style={{ marginBottom: 12 }}>
+        <span className="ico">📊</span>
+        <span style={{ flex: 1 }}>
+          <b>回顾</b>
+          <em>周报 / 月报</em>
+        </span>
+        <span className="tiny">›</span>
+      </Link>
+
       <Link href="/settings" className="card" style={{ display: "flex", alignItems: "center", gap: 12 }}>
         <Avatar url={ctx.user.avatarUrl} name={ctx.user.nickname} size={52} radius={18} />
         <div style={{ flex: 1 }}>

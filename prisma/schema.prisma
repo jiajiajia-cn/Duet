@@ -49,6 +49,7 @@ model User {
   auditLogs      AuditLog[]
   entries        Entry[]
   roomMembers    RoomMember[]
+  makeupCards    MakeupCard[]
   supervisionsAsSupervisor Supervision[] @relation("Supervisor")
   supervisionsAsMember     Supervision[] @relation("SupervisedMember")
 }
@@ -65,6 +66,7 @@ model Circle {
   updatedAt  DateTime @updatedAt
 
   members     CircleMember[]
+  makeupCards MakeupCard[]
   activeFor   User[]  @relation("ActiveCircle")
   habits      Habit[]
   rewards     Reward[]
@@ -240,6 +242,8 @@ enum CheckinSource {
   TIMER
   BACKFILL
   ADMIN
+  /// 用补签卡补的：不发积分，只恢复连续天数
+  MAKEUP
 }
 
 model Checkin {
@@ -721,4 +725,24 @@ model AuditLog {
   actor  User?  @relation(fields: [actorId], references: [id])
 
   @@index([circleId, createdAt])
+}
+
+/// 补签卡：花积分买一张，用来修复一次断签（只修连续天数，不发分）
+model MakeupCard {
+  id       String @id @default(cuid())
+  circleId String
+  userId   String
+  /// 买的时候花了多少分（留档）
+  price    Int
+  /// 用在了哪一天（localDate，YYYY-MM-DD）
+  usedOn   String?   @db.VarChar(10)
+  usedAt   DateTime?
+  habitId  String?
+  createdAt DateTime @default(now())
+
+  circle Circle @relation(fields: [circleId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([circleId, userId, usedAt])
+  @@index([userId, createdAt])
 }

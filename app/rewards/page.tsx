@@ -4,6 +4,8 @@ import Header from "@/components/Header";
 import { prisma } from "@/lib/db";
 import { getContext } from "@/lib/queries";
 import { expireOverdueRedemptions } from "@/lib/redemptions";
+import { makeupPrice, unusedCards } from "@/lib/makeup";
+import { buyMakeupCardAction, setMakeupPriceAction } from "@/app/actions/makeup";
 
 function cover(images: unknown): string | null {
   return Array.isArray(images) && images.length > 0 ? String(images[0]) : null;
@@ -12,16 +14,17 @@ function cover(images: unknown): string | null {
 export default async function RewardsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ cat?: string; error?: string }>;
+  searchParams: Promise<{ cat?: string; error?: string; ok?: string }>;
 }) {
   const ctx = await getContext();
   if (!ctx) redirect("/login");
 
   await expireOverdueRedemptions(ctx.circle.id);
 
-  const { cat, error } = await searchParams;
+  const { cat, error, ok } = await searchParams;
+  const makeupP = makeupPrice(ctx.circle.settings);
 
-  const [rewards, wallet, openGroups] = await Promise.all([
+  const [rewards, wallet, openGroups, cards] = await Promise.all([
     prisma.reward.findMany({
       where: { circleId: ctx.circle.id, status: { in: ["ACTIVE", "SOLD_OUT", "PAUSED"] } },
       orderBy: [{ sortWeight: "desc" }, { createdAt: "desc" }],
@@ -33,6 +36,7 @@ export default async function RewardsPage({
       where: { circleId: ctx.circle.id, type: "GROUP", status: "OPEN" },
       select: { rewardId: true, raisedPoints: true, pointsCost: true },
     }),
+    unusedCards(ctx.circle.id, ctx.user.id),
   ]);
 
   const openMap = new Map(openGroups.map((g) => [g.rewardId, g]));
@@ -45,7 +49,38 @@ export default async function RewardsPage({
     <>
       <Header title="奖品" sub={`可用 ${balance.toLocaleString()} 分`} avatar={ctx.user.nickname.slice(0, 1)} />
 
+      {ok ? <div className="alert ok" style={{ marginBottom: 12 }}>{ok}</div> : null}
       {error ? <div className="alert" style={{ marginBottom: 12 }}>{error}</div> : null}
+
+      {makeupP ? (
+        <div className="card" style={{ marginBottom: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div className="ico" style={{ width: 40, height: 40, borderRadius: 13, fontSize: 18 }}>
+              🩹
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontWeight: 650, fontSize: 15 }}>补签卡</div>
+              <div className="tiny" style={{ marginTop: 2 }}>
+                {makeupP} 分一张 · 手上 {cards} 张
+              </div>
+            </div>
+            <form action={buyMakeupCardAction}>
+              <button className="btn ghost" type="submit" style={{ width: "auto", padding: "8px 14px", fontSize: 13 }}>
+                买一张
+              </button>
+            </form>
+          </div>
+          <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+            <Link
+              href="/makeup"
+              className="btn ghost"
+              style={{ flex: 1, height: 40, fontSize: 13 }}
+            >
+              去补签
+            </Link>
+          </div>
+        </div>
+      ) : null}
 
       <div className="chips" style={{ justifyContent: "flex-start", margin: "2px 0 0" }}>
         <Link href="/rewards" className={`chip${!cat ? " on" : ""}`}>
@@ -128,6 +163,17 @@ export default async function RewardsPage({
       <Link href="/orders" className="btn ghost">
         我的兑换
       </Link>
+      {ctx.role === "OWNER" || ctx.role === "ADMIN" ? (
+        <form action={setMakeupPriceAction} className="card" style={{ marginTop: 12, display: "flex", gap: 8, alignItems: "flex-end" }}>
+          <label className="field" style={{ flex: 1 }}>
+            <span>补签卡价格（0 = 关闭）</span>
+            <input name="price" type="number" min={0} defaultValue={makeupP} placeholder="比如 50" />
+          </label>
+          <button className="btn ghost" type="submit" style={{ width: "auto", padding: "0 16px", height: 50 }}>
+            保存
+          </button>
+        </form>
+      ) : null}
       {ctx.role === "OWNER" || ctx.role === "ADMIN" ? (
         <Link href="/admin/rewards" className="btn ghost" style={{ marginTop: 10 }}>
           全部奖品（编辑 / 归档）
