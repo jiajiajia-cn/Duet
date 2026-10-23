@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import HabitForm, { habitDefaultsOf } from "@/components/HabitForm";
+import HabitForm from "@/components/HabitForm";
+import { habitDefaultsOf } from "@/lib/habit-defaults";
 import { prisma } from "@/lib/db";
 import { getContext } from "@/lib/queries";
 import { setHabitStatusAction, updateHabitAction } from "@/app/actions/habits";

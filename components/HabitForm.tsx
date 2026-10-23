@@ -2,27 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import type { Habit } from "@prisma/client";
-
-export type HabitDefaults = {
-  id?: string;
-  title?: string;
-  icon?: string;
-  type?: string;
-  goalType?: string;
-  frequency?: unknown;
-  unit?: string | null;
-  countPerDay?: number;
-  pointsPerCheckin?: number;
-  pointsPerUnit?: number;
-  dailyCap?: number | null;
-  minTimerMinutes?: number;
-  autoCheckinOnTimer?: boolean;
-  defaultSkillId?: string | null;
-  remindAt?: string | null;
-  needsReview?: boolean;
-  collaborative?: boolean;
-};
+import type { HabitDefaults } from "@/lib/habit-defaults";
 
 const WEEK = [
   { v: 1, t: "一" },
@@ -42,29 +22,6 @@ const TYPE_HINT: Record<string, string> = {
   TIMED: "用计时器专注到规定时长，自动打卡，分数按「计分规则」发。",
   NEGATIVE: "目标是不做这件事，守住了就加分。",
 };
-
-export function habitDefaultsOf(h: Habit): HabitDefaults {
-  const freq = (h.frequency ?? { kind: "daily" }) as { kind?: string; days?: number[]; times?: number };
-  return {
-    id: h.id,
-    title: h.title,
-    icon: h.icon,
-    type: h.type,
-    goalType: h.goalType,
-    frequency: freq,
-    unit: h.unit,
-    countPerDay: h.countPerDay,
-    pointsPerCheckin: h.pointsPerCheckin,
-    pointsPerUnit: h.pointsPerUnit,
-    dailyCap: h.dailyCap,
-    minTimerMinutes: h.minTimerMinutes,
-    autoCheckinOnTimer: h.autoCheckinOnTimer,
-    defaultSkillId: h.defaultSkillId,
-    remindAt: h.remindAt,
-    needsReview: h.needsReview,
-    collaborative: h.collaborative,
-  };
-}
 
 export default function HabitForm({
   action,
@@ -121,7 +78,7 @@ export default function HabitForm({
       </div>
 
       <div className="card" style={{ padding: 12 }}>
-        <b style={{ fontSize: 14 }}>频率</b>
+        <b style={{ fontSize: 14, display: "block" }}>频率</b>
         <label className="field" style={{ marginTop: 8 }}>
           <select name="freqKind" value={freqKind} onChange={(e) => setFreqKind(e.target.value)}>
             <option value="daily">每天</option>
@@ -154,7 +111,7 @@ export default function HabitForm({
 
       {type === "QUANTITY" ? (
         <div className="card" style={{ padding: 12 }}>
-          <b style={{ fontSize: 14 }}>计量设置</b>
+          <b style={{ fontSize: 14, display: "block" }}>计量设置</b>
           <div className="field-row" style={{ marginTop: 8 }}>
             <label className="field">
               <span>单位</span>
@@ -174,7 +131,7 @@ export default function HabitForm({
 
       {type === "TIMED" ? (
         <div className="card" style={{ padding: 12 }}>
-          <b style={{ fontSize: 14 }}>计时设置</b>
+          <b style={{ fontSize: 14, display: "block" }}>计时设置</b>
           <div className="field-row" style={{ marginTop: 8 }}>
             <label className="field">
               <span>至少多少分钟算达标</span>
@@ -226,7 +183,7 @@ export default function HabitForm({
       </label>
 
       <div className="card" style={{ padding: 12 }}>
-        <b style={{ fontSize: 14 }}>和对方一起</b>
+        <b style={{ fontSize: 14, display: "block" }}>和对方一起</b>
         <label className="chip" style={{ display: "inline-flex", alignItems: "center", gap: 6, marginTop: 10 }}>
           <input
             type="checkbox"
