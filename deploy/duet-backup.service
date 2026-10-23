@@ -1,0 +1,7 @@
+[Unit]
+Description=Duet 数据库备份
+
+[Service]
+Type=oneshot
+WorkingDirectory=/root/Duet
+ExecStart=/bin/bash /root/Duet/deploy/backup.sh

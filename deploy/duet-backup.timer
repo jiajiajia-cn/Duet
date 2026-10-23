@@ -1,0 +1,10 @@
+[Unit]
+Description=每天凌晨 3:30 备份 Duet 数据库
+
+[Timer]
+OnCalendar=*-*-* 03:30:00
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target
