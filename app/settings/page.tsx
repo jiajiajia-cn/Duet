@@ -279,6 +279,18 @@ export default async function SettingsPage({
       </div>
 
       <div className="settings-group">
+        <div className="section-title"><b>数据</b></div>
+        <Link href="/settings/danger" className="settings-row">
+          <span className="ico">🧹</span>
+          <span style={{ flex: 1 }}>
+            <b>清空记录</b>
+            <em>清掉测试数据，从零开始</em>
+          </span>
+          <span className="tiny">›</span>
+        </Link>
+      </div>
+
+      <div className="settings-group">
         <div className="section-title"><b>账号</b></div>
         <div className="card">
           <form action={updateProfileAction} className="stack" style={{ gap: 10 }} encType="multipart/form-data">
