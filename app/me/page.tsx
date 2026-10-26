@@ -27,7 +27,28 @@ export default async function MePage() {
 
   return (
     <>
-      <Header title="我的" sub={`${skills.length} 个技能`} avatar={ctx.user.nickname.slice(0, 1)} />
+      <Header title="我的" sub={`${skills.length} 个技能`} />
+
+      <div className="wallet" style={{ marginBottom: 14 }}>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+          <div>
+            <div className="lbl">可用积分</div>
+            <div className="num">
+              {(wallet?.balance ?? 0).toLocaleString()}
+              <small>分</small>
+            </div>
+          </div>
+          <Avatar url={ctx.user.avatarUrl} name={ctx.user.nickname} size={44} radius={15} />
+        </div>
+        <div className="row">
+          <span>
+            {ctx.user.nickname} · {ctx.role === "OWNER" ? "圈主" : "成员"}
+          </span>
+          <span>
+            累计 <b>{(wallet?.totalEarned ?? 0).toLocaleString()}</b>
+          </span>
+        </div>
+      </div>
 
       <Link href="/report" className="settings-row" style={{ marginBottom: 12 }}>
         <span className="ico">📊</span>
@@ -37,22 +58,6 @@ export default async function MePage() {
         </span>
         <span className="tiny">›</span>
       </Link>
-
-      <Link href="/settings" className="card" style={{ display: "flex", alignItems: "center", gap: 12 }}>
-        <Avatar url={ctx.user.avatarUrl} name={ctx.user.nickname} size={52} radius={18} />
-        <div style={{ flex: 1 }}>
-          <div style={{ fontWeight: 700, fontSize: 17 }}>{ctx.user.nickname}</div>
-        </div>
-        <span className="pill">{ctx.role === "OWNER" ? "圈主" : "成员"}</span>
-      </Link>
-
-      <div className="wallet" style={{ marginTop: 14, padding: 14 }}>
-        <div className="lbl">可用积分</div>
-        <div className="num" style={{ fontSize: 30 }}>
-          {(wallet?.balance ?? 0).toLocaleString()}
-          <small>分</small>
-        </div>
-      </div>
 
       <div className="settings-group">
         <Link href="/settings" className="settings-row">

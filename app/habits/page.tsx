@@ -6,7 +6,11 @@ import { getToday } from "@/lib/queries";
 import { prisma } from "@/lib/db";
 import { shiftDate, weekdayIndex } from "@/lib/date";
 
-export default async function HabitsPage() {
+export default async function HabitsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ range?: string }>;
+}) {
   const data = await getToday();
   if (!data) redirect("/login");
 
@@ -28,6 +32,9 @@ export default async function HabitsPage() {
   for (const c of checkins) counts.set(c.localDate, (counts.get(c.localDate) ?? 0) + 1);
   const max = Math.max(1, ...counts.values());
 
+  const { range } = await searchParams;
+  const weekMode = range === "week";
+
   const cells: { date: string; level: number }[] = [];
   for (let i = 0; i < 84; i++) {
     const date = shiftDate(gridStart, i);
@@ -35,6 +42,13 @@ export default async function HabitsPage() {
     const level = n === 0 ? 0 : Math.min(4, Math.ceil((n / max) * 4));
     cells.push({ date, level });
   }
+
+  const weekCells = Array.from({ length: 7 }, (_, i) => {
+    const date = shiftDate(today, -(6 - i));
+    const n = counts.get(date) ?? 0;
+    const level = n === 0 ? 0 : Math.min(4, Math.ceil((n / max) * 4));
+    return { date, level, n };
+  });
 
   return (
     <>
@@ -61,15 +75,38 @@ export default async function HabitsPage() {
       </div>
 
       <div className="section-title">
-        <b>近 12 周</b>
-      </div>
-      <div className="card">
-        <div className="heat">
-          {cells.map((c) => (
-            <i key={c.date} className={c.level ? `l${c.level}` : ""} title={`${c.date} · ${counts.get(c.date) ?? 0} 次`} />
-          ))}
+        <b>{weekMode ? "近 7 天" : "近 12 周"}</b>
+        <div className="seg">
+          <Link href="/habits?range=week" className={`seg-btn${weekMode ? " on" : ""}`}>
+            7 天
+          </Link>
+          <Link href="/habits" className={`seg-btn${weekMode ? "" : " on"}`}>
+            12 周
+          </Link>
         </div>
+      </div>
 
+      <div className="card">
+        {weekMode ? (
+          <div className="week-cells">
+            {weekCells.map((c) => (
+              <Link key={c.date} href={`/day/${c.date}`} className={`week-cell${c.level ? ` l${c.level}` : ""}`}>
+                <span className="wc-bar" />
+                <span className="wc-day">{c.date.slice(8)}</span>
+                <span className="wc-wd">{["日", "一", "二", "三", "四", "五", "六"][new Date(`${c.date}T00:00:00Z`).getUTCDay()]}</span>
+              </Link>
+            ))}
+          </div>
+        ) : (
+          <div className="heat">
+            {cells.map((c) => (
+              <i key={c.date} className={c.level ? `l${c.level}` : ""} title={`${c.date} · ${counts.get(c.date) ?? 0} 次`} />
+            ))}
+          </div>
+        )}
+        <div className="tiny" style={{ marginTop: 10 }}>
+          {weekMode ? "点某一天可以看当天的小日报" : "每一格是一天，颜色越深打卡越多"}
+        </div>
       </div>
 
       <div className="section-title">

@@ -1273,3 +1273,54 @@ html[data-theme="maltese"] .heat i.l1 { background: color-mix(in srgb, var(--ink
 html[data-theme="maltese"] .heat i.l2 { background: color-mix(in srgb, var(--ink) 50%, transparent); }
 html[data-theme="maltese"] .heat i.l3 { background: color-mix(in srgb, var(--ink) 72%, transparent); }
 html[data-theme="maltese"] .heat i.l4 { background: var(--ink); }
+
+/* ---------- 分段切换（7 天 / 12 周） ---------- */
+.seg {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--ink) 7%, transparent);
+}
+.seg-btn {
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink3);
+  transition: background 160ms var(--ease), color 160ms var(--ease);
+}
+.seg-btn.on {
+  background: var(--card);
+  color: var(--ink);
+  box-shadow: 0 1px 2px rgba(16, 18, 35, 0.08);
+}
+
+/* ---------- 近 7 天的大格子 ---------- */
+.week-cells {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+.week-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 0 6px;
+  border-radius: 12px;
+  transition: transform 140ms var(--ease), background 140ms var(--ease);
+}
+.week-cell:active { transform: scale(0.95); }
+.week-cell .wc-bar {
+  width: 100%;
+  height: 34px;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--ink) 7%, transparent);
+}
+.week-cell.l1 .wc-bar { background: color-mix(in srgb, var(--brand) 26%, transparent); }
+.week-cell.l2 .wc-bar { background: color-mix(in srgb, var(--brand) 46%, transparent); }
+.week-cell.l3 .wc-bar { background: color-mix(in srgb, var(--brand) 70%, transparent); }
+.week-cell.l4 .wc-bar { background: var(--brand); }
+.week-cell .wc-day { font-size: 12px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.week-cell .wc-wd { font-size: 10px; color: var(--ink3); }
