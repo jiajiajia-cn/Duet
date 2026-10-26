@@ -79,7 +79,7 @@ export default async function DayPage({ params }: { params: Promise<{ date: stri
           {r.timers.map((t, i) => (
             <div key={i} className="kv">
               <span>
-                {t.skill} · {t.phase}
+                {t.skill}
               </span>
               <b>
                 {t.minutes} 分钟{t.points ? ` · +${t.points}` : ""}

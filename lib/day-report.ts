@@ -106,7 +106,7 @@ export async function buildDayReport(opts: {
       };
     });
 
-  const timerRows = sessions.map((s) => ({
+  const timerRows = sessions.filter((s) => s.phase === "FOCUS").map((s) => ({
     skill: s.skill?.name ?? "未分类",
     minutes: Math.round(s.elapsedSeconds / 60),
     points: s.pointsAwarded,

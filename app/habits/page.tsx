@@ -104,9 +104,11 @@ export default async function HabitsPage({
             ))}
           </div>
         )}
-        <div className="tiny" style={{ marginTop: 10 }}>
-          {weekMode ? "点某一天可以看当天的小日报" : "每一格是一天，颜色越深打卡越多"}
-        </div>
+        {!weekMode ? (
+          <div className="tiny" style={{ marginTop: 10 }}>
+            每一格是一天，颜色越深打卡越多
+          </div>
+        ) : null}
       </div>
 
       <div className="section-title">
