@@ -60,7 +60,9 @@ export default async function DayPage({ params }: { params: Promise<{ date: stri
           {r.habits.map((h) => (
             <div key={h.title} className="kv">
               <span>
-                <span style={{ color: h.done ? "var(--ok)" : "var(--ink3)" }}>{h.done ? "✓" : "○"}</span> {h.icon} {h.title}
+                <span style={{ color: h.done ? "var(--ok)" : "var(--ink3)" }}>{h.done ? "✓" : "○"}</span>{" "}
+                {h.time ? <span style={{ color: "var(--ink3)", fontVariantNumeric: "tabular-nums" }}>{h.time} </span> : null}
+                {h.icon} {h.title}
                 {h.quantity > 1 ? ` ×${h.quantity}` : ""}
               </span>
               <b style={{ color: h.done ? "var(--ok)" : "var(--ink3)" }}>

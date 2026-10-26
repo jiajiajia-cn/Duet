@@ -4,7 +4,7 @@ import { isDueByDay, type Freq } from "./frequency";
 export type DayReport = {
   date: string;
   weekday: string;
-  habits: { title: string; icon: string; done: boolean; points: number; quantity: number; source: string }[];
+  habits: { title: string; icon: string; done: boolean; points: number; quantity: number; source: string; time: string | null }[];
   timers: { skill: string; minutes: number; points: number; phase: string }[];
   txns: { reason: string; delta: number }[];
   redemptions: { title: string; points: number; status: string }[];
@@ -82,18 +82,35 @@ export async function buildDayReport(opts: {
     }),
   ]);
 
-  const byHabit = new Map<string, { points: number; quantity: number; source: string }>();
+  const byHabit = new Map<string, { points: number; quantity: number; source: string; time: string }>();
   for (const c of checkins) {
     const prev = byHabit.get(c.habitId);
+    const time = new Date(c.checkedAt).toLocaleTimeString("zh-CN", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+      timeZone: timezone,
+    });
     byHabit.set(c.habitId, {
       points: (prev?.points ?? 0) + c.pointsAwarded,
       quantity: (prev?.quantity ?? 0) + c.quantity,
+      // 多次打卡取最早那次的时间
+      time: prev?.time ?? time,
       source: c.source,
     });
   }
 
   const habitRows = habits
-    .filter((h) => isDueByDay(h.frequency as Freq, date))
+    .filter((h) => {
+      const hit = byHabit.get(h.id);
+      // 我打过卡的，一定显示
+      if (hit) return true;
+      // 其余只显示「我今天该做、而且是我自己的」习惯
+      // （别人名下的、需要我确认的，都不进我的日报）
+      if (h.status === "ARCHIVED") return false;
+      if (h.ownerId !== userId) return false;
+      return isDueByDay(h.frequency as Freq, date);
+    })
     .map((h) => {
       const hit = byHabit.get(h.id);
       return {
@@ -103,6 +120,7 @@ export async function buildDayReport(opts: {
         points: hit?.points ?? 0,
         quantity: hit?.quantity ?? 0,
         source: SOURCE_TEXT[hit?.source ?? ""] ?? "",
+        time: hit?.time ?? null,
       };
     });
 
@@ -168,7 +186,7 @@ export function dayReportToMarkdown(r: DayReport): string {
     lines.push(`**打卡** ${done.length}/${r.habits.length}`);
     for (const h of done) {
       const q = h.quantity > 1 ? ` ×${h.quantity}` : "";
-      lines.push(`- [x] ${h.title}${q}${h.points ? ` +${h.points}` : ""}${h.source && h.source !== "手动" ? `（${h.source}）` : ""}`);
+      lines.push(`- [x] ${h.time ? h.time + " " : ""}${h.title}${q}${h.points ? ` +${h.points}` : ""}${h.source && h.source !== "手动" ? `（${h.source}）` : ""}`);
     }
     for (const h of todo) lines.push(`- [ ] ${h.title}`);
     lines.push("");

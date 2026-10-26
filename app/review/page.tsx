@@ -6,6 +6,11 @@ import { getContext } from "@/lib/queries";
 import { localDateString } from "@/lib/date";
 import { approveCheckinAction, nudgeAction, rejectCheckinAction } from "@/app/actions/review";
 
+/** 确认后会加多少分（和 approveCheckinAction 的算法保持一致） */
+function previewPoints(habit: { type: string; pointsPerCheckin: number; pointsPerUnit: number }) {
+  if (habit.type === "TIMED") return 0;
+  return habit.type === "QUANTITY" ? habit.pointsPerUnit : habit.pointsPerCheckin;
+}
 export default async function ReviewPage({
   searchParams,
 }: {
@@ -21,7 +26,10 @@ export default async function ReviewPage({
     prisma.checkin.findMany({
       where: { habit: { circleId: ctx.circle.id }, status: "PENDING" },
       orderBy: { checkedAt: "desc" },
-      include: { habit: { select: { title: true, icon: true } }, user: { select: { nickname: true } } },
+      include: {
+        habit: { select: { title: true, icon: true, type: true, pointsPerCheckin: true, pointsPerUnit: true } },
+        user: { select: { nickname: true } },
+      },
     }),
     prisma.circleMember.findMany({
       where: { circleId: ctx.circle.id, status: "ACTIVE" },
@@ -64,6 +72,9 @@ export default async function ReviewPage({
                   {new Date(c.checkedAt).toLocaleString("zh-CN", { timeZone: ctx.user.timezone, hour12: false, month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}
                   {c.note ? ` · ${c.note}` : ""}
                 </div>
+                <div className="tiny" style={{ marginTop: 4, color: "var(--ink3)" }}>
+                  确认后分数加给 {c.user.nickname}，不进你的账
+                </div>
               </div>
             </div>
 
@@ -81,7 +92,7 @@ export default async function ReviewPage({
                 <form action={approveCheckinAction} style={{ marginTop: 10 }}>
                   <input type="hidden" name="checkinId" value={c.id} />
                   <button className="btn" type="submit" style={{ padding: 11, fontSize: 14 }}>
-                    确认，给他加分
+                    确认并给 {c.user.nickname} +{previewPoints(c.habit)} 分
                   </button>
                 </form>
                 <form action={rejectCheckinAction} style={{ display: "flex", gap: 8, marginTop: 8 }}>

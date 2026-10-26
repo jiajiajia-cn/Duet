@@ -4,7 +4,8 @@ import HabitForm from "@/components/HabitForm";
 import { habitDefaultsOf } from "@/lib/habit-defaults";
 import { prisma } from "@/lib/db";
 import { getContext } from "@/lib/queries";
-import { setHabitStatusAction, updateHabitAction } from "@/app/actions/habits";
+import ConfirmSubmit from "@/components/ConfirmSubmit";
+import { deleteHabitAction, setHabitStatusAction, updateHabitAction } from "@/app/actions/habits";
 
 export default async function EditHabitPage({
   params,
@@ -88,6 +89,16 @@ export default async function EditHabitPage({
           </button>
         </form>
       </div>
+
+      <form action={deleteHabitAction} style={{ marginTop: 10 }}>
+        <input type="hidden" name="id" value={habit.id} />
+        <ConfirmSubmit
+          message={`彻底删除「${habit.title}」？\n\n它的打卡记录和连续天数会一起删掉，无法恢复。只想暂时不显示的话，用「归档」。`}
+          style={{ width: "100%", padding: 11, fontSize: 14, color: "var(--danger)" }}
+        >
+          彻底删除这个习惯
+        </ConfirmSubmit>
+      </form>
 
     </>
   );

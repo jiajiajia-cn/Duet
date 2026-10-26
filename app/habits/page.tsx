@@ -113,9 +113,14 @@ export default async function HabitsPage({
 
       <div className="section-title">
         <b>全部习惯</b>
-        <Link href="/habits/new" className="tiny" style={{ color: "var(--brand)", fontWeight: 700 }}>
-          ＋ 新建
-        </Link>
+        <span style={{ display: "flex", gap: 12, alignItems: "center" }}>
+          <Link href="/habits/archived" className="tiny">
+            归档管理
+          </Link>
+          <Link href="/habits/new" className="tiny" style={{ color: "var(--brand)", fontWeight: 700 }}>
+            ＋ 新建
+          </Link>
+        </span>
       </div>
 
       {rows.length === 0 ? (

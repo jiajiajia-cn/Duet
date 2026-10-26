@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import Avatar from "@/components/Avatar";
+import CheckButton from "@/components/CheckButton";
 import Mascot from "@/components/Mascot";
-import { checkInAction, undoCheckinAction, seedDemoAction } from "@/app/actions/checkin";
+import { seedDemoAction } from "@/app/actions/checkin";
 import { getToday } from "@/lib/queries";
 import { humanDate } from "@/lib/date";
 import { prisma } from "@/lib/db";
@@ -165,17 +166,7 @@ export default async function TodayPage() {
                     ▶
                   </Link>
                 ) : (
-                  <form action={row.done ? undoCheckinAction : checkInAction}>
-                    <input type="hidden" name="habitId" value={row.id} />
-                    <button
-                      type="submit"
-                      className={`check${row.done ? " done" : ""}`}
-                      aria-label={row.done ? "撤销打卡" : "打卡"}
-                      title={row.done ? "点一下撤销" : "打卡"}
-                    >
-                      {row.done ? "✓" : ""}
-                    </button>
-                  </form>
+                  <CheckButton habitId={row.id} done={row.done} />
                 )}
               </div>
             ))}

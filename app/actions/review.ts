@@ -24,12 +24,14 @@ export async function approveCheckinAction(formData: FormData) {
 
   const c = await prisma.checkin.findFirst({
     where: { id, habit: { circleId: ctx.circle.id } },
-    include: { habit: true },
+    include: { habit: true, user: { select: { nickname: true } } },
   });
   if (!c || c.status !== "PENDING") redirect("/review");
   if (c.userId === ctx.user.id) {
     redirect("/review?error=" + encodeURIComponent("不能确认自己的打卡"));
   }
+
+  let awarded = 0;
 
   await prisma.$transaction(async (tx) => {
     let points =
@@ -49,6 +51,8 @@ export async function approveCheckinAction(formData: FormData) {
       const used = sum._sum.pointsAwarded ?? 0;
       points = Math.max(0, Math.min(points, c.habit.dailyCap - used));
     }
+
+    awarded = points;
 
     await tx.checkin.update({
       where: { id: c.id },
@@ -135,7 +139,7 @@ export async function approveCheckinAction(formData: FormData) {
   revalidatePath("/review");
   revalidatePath("/");
   revalidatePath("/habits");
-  redirect("/review?ok=" + encodeURIComponent("已确认并加分"));
+  redirect("/review?ok=" + encodeURIComponent(`已确认，${c.user.nickname} 拿到 ${awarded} 分（不进你的账）`));
 }
 
 /** 驳回：不发分，写理由 + 通知对方 */
@@ -146,7 +150,7 @@ export async function rejectCheckinAction(formData: FormData) {
 
   const c = await prisma.checkin.findFirst({
     where: { id, habit: { circleId: ctx.circle.id } },
-    include: { habit: true },
+    include: { habit: true, user: { select: { nickname: true } } },
   });
   if (!c || c.status !== "PENDING") redirect("/review");
 

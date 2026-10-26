@@ -122,3 +122,29 @@ export async function setHabitStatusAction(fd: FormData) {
   revalidatePath("/habits");
   redirect("/habits?ok=" + encodeURIComponent(status === "ARCHIVED" ? "已归档" : "已更新"));
 }
+
+/** 彻底删除习惯（连同它的打卡、统计、计时记录） */
+export async function deleteHabitAction(fd: FormData) {
+  const ctx = await requireCtx();
+  const id = String(fd.get("id") ?? "");
+
+  const habit = await prisma.habit.findFirst({ where: { id, circleId: ctx.circle.id } });
+  if (!habit) redirect("/habits");
+  if (habit.ownerId !== ctx.user.id && ctx.role !== "OWNER" && ctx.role !== "ADMIN") {
+    redirect("/habits?error=" + encodeURIComponent("只能删自己的习惯"));
+  }
+
+  await prisma.$transaction(async (tx) => {
+    // 计时记录解除关联，保留时长数据
+    await tx.timerSession.updateMany({ where: { habitId: id }, data: { habitId: null } });
+    await tx.checkin.deleteMany({ where: { habitId: id } });
+    await tx.habitStat.deleteMany({ where: { habitId: id } });
+    await tx.habit.delete({ where: { id } });
+  });
+
+  revalidatePath("/");
+  revalidatePath("/habits");
+  revalidatePath("/habits/archived");
+  revalidatePath("/report");
+  redirect("/habits/archived?ok=" + encodeURIComponent(`已删除「${habit.title}」`));
+}

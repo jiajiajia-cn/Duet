@@ -73,3 +73,25 @@ export async function setSkillStatusAction(fd: FormData) {
   revalidatePath(`/skills/${id}`);
   redirect("/skills?ok=" + encodeURIComponent(status === "ARCHIVED" ? "已归档" : "已恢复"));
 }
+
+/** 彻底删除技能（计时记录保留，只是解除关联） */
+export async function deleteSkillAction(fd: FormData) {
+  const ctx = await requireCtx();
+  const id = String(fd.get("id") ?? "");
+
+  const skill = await prisma.skill.findFirst({ where: { id, circleId: ctx.circle.id } });
+  if (!skill) redirect("/skills");
+  if (skill.ownerId !== ctx.user.id && ctx.role !== "OWNER" && ctx.role !== "ADMIN") {
+    redirect("/skills?error=" + encodeURIComponent("只能删自己的技能"));
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.timerSession.updateMany({ where: { skillId: id }, data: { skillId: null } });
+    await tx.skill.delete({ where: { id } });
+  });
+
+  revalidatePath("/skills");
+  revalidatePath("/timer");
+  revalidatePath("/me");
+  redirect("/skills?ok=" + encodeURIComponent(`已删除「${skill.name}」`));
+}

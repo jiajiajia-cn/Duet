@@ -3,7 +3,8 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { getContext } from "@/lib/queries";
 import { localDateString, shiftDate } from "@/lib/date";
-import { setSkillStatusAction } from "@/app/actions/skills";
+import ConfirmSubmit from "@/components/ConfirmSubmit";
+import { deleteSkillAction, setSkillStatusAction } from "@/app/actions/skills";
 
 function fmtDuration(sec: number) {
   const h = Math.floor(sec / 3600);
@@ -163,6 +164,16 @@ export default async function SkillDetailPage({
         <button className="btn ghost" type="submit" style={{ width: "100%", padding: 11, fontSize: 14 }}>
           {skill.status === "ARCHIVED" ? "恢复这个技能" : "归档这个技能"}
         </button>
+      </form>
+
+      <form action={deleteSkillAction} style={{ marginTop: 10 }}>
+        <input type="hidden" name="id" value={skill.id} />
+        <ConfirmSubmit
+          message={`彻底删除「${skill.name}」？\n\n计时记录不会删，但会变成「未分类」，无法恢复。`}
+          style={{ width: "100%", padding: 11, fontSize: 14, color: "var(--danger)" }}
+        >
+          彻底删除这个技能
+        </ConfirmSubmit>
       </form>
 
     </>
