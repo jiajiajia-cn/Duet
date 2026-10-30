@@ -52,6 +52,15 @@ export default async function AiSettingsPage({
           <input name="baseUrl" defaultValue={cfg.baseUrl} placeholder="https://api.deepseek.com/v1" />
         </label>
 
+        <label className="field">
+          <span>说话的人</span>
+          <select name="persona" defaultValue={(cfg as { persona?: string }).persona ?? "coach"}>
+            <option value="coach">温柔教练（先接住情绪）</option>
+            <option value="roast">毒舌朋友（损你两句但真心）</option>
+            <option value="analyst">理性分析师（讲因果和数字）</option>
+          </select>
+        </label>
+
         <div className="field-row">
           <label className="field">
             <span>模型</span>

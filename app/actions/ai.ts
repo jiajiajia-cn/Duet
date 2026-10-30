@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import { getContext } from "@/lib/queries";
 import { localDateString, shiftDate } from "@/lib/date";
 import { aiConfig, callAi, collectFacts, factsToPrompt, fallbackText, type AiConfig } from "@/lib/ai";
+import { computeInsights, insightsToText } from "@/lib/insights";
 
 async function requireCtx() {
   const ctx = await getContext();
@@ -28,6 +29,7 @@ export async function saveAiConfigAction(fd: FormData) {
   const model = String(fd.get("model") ?? "").trim() || "deepseek-chat";
   const enabled = fd.get("enabled") === "on";
   const hour = Math.min(6, Math.max(0, Number(fd.get("hour") ?? 0) || 0));
+  const persona = String(fd.get("persona") ?? prev.persona ?? "coach");
 
   await prisma.circle.update({
     where: { id: ctx.circle.id },
@@ -41,6 +43,7 @@ export async function saveAiConfigAction(fd: FormData) {
           model,
           enabled,
           hour,
+          persona,
         },
       },
     },
@@ -183,12 +186,32 @@ export async function generateWeeklyAction() {
     ? reports.map((r) => `【${r.date}】\n${r.content}`).join("\n\n")
     : "这一周没有日报记录。";
 
+  const insight = await computeInsights({
+    circleId: ctx.circle.id,
+    userId: ctx.user.id,
+    today,
+    timezone: ctx.user.timezone,
+    days: 30,
+  });
+
   let content = "";
   let model = cfg.model ?? "deepseek-chat";
   try {
     content = await callAi(
       cfg,
-      `下面是这个人最近 7 天的每日回顾，请写一段本周总结（120–180 字，2 段，口语化，指出一个规律 + 一个下周建议，不要罗列）：\n\n${factsText}`,
+      `请写一段本周总结（160–240 字，2–3 段，口语化，不要罗列清单）。
+
+【必须做的事】
+1. 从下面的统计里找出 1–2 个真实的规律（比如哪一天最容易崩、哪个习惯在拖后腿、打卡时间越来越晚、本周比上周进步/退步），
+   用具体数字说清楚，不要泛泛而谈。
+2. 基于这个规律给一个下周的调整方案，要具体到"怎么做"，不是"要坚持"。
+3. 最后一句给一个最小行动。
+
+【统计】
+${insightsToText(insight)}
+
+【每日回顾】
+${factsText}`,
     );
   } catch {
     content = "这周的数据还不够，多记录几天，我就能看出你的规律了。";

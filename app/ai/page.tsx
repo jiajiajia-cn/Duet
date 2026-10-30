@@ -5,6 +5,8 @@ import { prisma } from "@/lib/db";
 import { getContext } from "@/lib/queries";
 import { aiConfig } from "@/lib/ai";
 import { generateWeeklyAction } from "@/app/actions/ai";
+import { computeInsights } from "@/lib/insights";
+import { localDateString } from "@/lib/date";
 
 export default async function AiHistoryPage({
   searchParams,
@@ -16,6 +18,15 @@ export default async function AiHistoryPage({
 
   const { ok, error } = await searchParams;
   const cfg = aiConfig(ctx.circle.settings);
+
+  const today = localDateString(ctx.user.timezone, ctx.user.dayStartHour);
+  const insight = await computeInsights({
+    circleId: ctx.circle.id,
+    userId: ctx.user.id,
+    today,
+    timezone: ctx.user.timezone,
+    days: 30,
+  }).catch(() => null);
 
   const reports = await prisma.aiReport
     .findMany({
@@ -49,6 +60,83 @@ export default async function AiHistoryPage({
           </button>
         </form>
       )}
+
+      {insight && insight.overallRate > 0 ? (
+        <div className="card" style={{ marginBottom: 12 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 10 }}>
+            <b>数据里的规律</b>
+            <span className="tiny">最近 30 天</span>
+          </div>
+
+          <div className="kv">
+            <span>总体完成率</span>
+            <b>
+              {insight.overallRate}%
+              <span className="tiny" style={{ marginLeft: 6, color: insight.trend.diff >= 0 ? "var(--ok)" : "var(--danger)" }}>
+                {insight.trend.diff >= 0 ? "+" : ""}
+                {insight.trend.diff} vs 上周
+              </span>
+            </b>
+          </div>
+
+          {insight.bestDay ? (
+            <div className="kv">
+              <span>最稳的一天</span>
+              <b>
+                {insight.bestDay.label} · {insight.bestDay.rate}%
+              </b>
+            </div>
+          ) : null}
+
+          {insight.worstDay && insight.worstDay.label !== insight.bestDay?.label ? (
+            <div className="kv">
+              <span>最容易崩的一天</span>
+              <b style={{ color: "var(--danger)" }}>
+                {insight.worstDay.label} · {insight.worstDay.rate}%
+              </b>
+            </div>
+          ) : null}
+
+          {insight.fragile.length ? (
+            <div className="kv">
+              <span>最容易断</span>
+              <b style={{ textAlign: "right" }}>
+                {insight.fragile.map((f) => `${f.title} ${f.rate}%`).join("、")}
+              </b>
+            </div>
+          ) : null}
+
+          {insight.strongest.length ? (
+            <div className="kv">
+              <span>最稳定</span>
+              <b style={{ textAlign: "right" }}>
+                {insight.strongest.map((f) => `${f.title} ${f.rate}%`).join("、")}
+              </b>
+            </div>
+          ) : null}
+
+          {insight.avgHour != null ? (
+            <div className="kv">
+              <span>平均打卡时间</span>
+              <b>{insight.avgHour} 点</b>
+            </div>
+          ) : null}
+
+          {insight.focusMinutes ? (
+            <div className="kv">
+              <span>专注总时长</span>
+              <b>
+                {insight.focusMinutes} 分钟
+                {insight.topSkill ? ` · ${insight.topSkill.name}` : ""}
+              </b>
+            </div>
+          ) : null}
+
+          <div className="tiny" style={{ marginTop: 10, lineHeight: 1.6 }}>
+            这些都是按你的记录算出来的，不是 AI 编的。点下面的「生成这周的总结」会让 AI 解读它们。
+          </div>
+        </div>
+      ) : null}
 
       {reports.length === 0 ? (
         <div className="empty">还没有回顾。开了 AI 之后，每天晚上会自动生成一篇。</div>

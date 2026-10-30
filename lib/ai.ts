@@ -9,6 +9,8 @@ export type AiConfig = {
   model?: string;
   /** 每晚几点之后算"新的一天"，默认 0 点 */
   hour?: number;
+  /** 语气：coach 温柔教练 / roast 毒舌朋友 / analyst 理性分析师 */
+  persona?: string;
 };
 
 export function aiConfig(settings: unknown): AiConfig {
@@ -20,8 +22,21 @@ export function aiConfig(settings: unknown): AiConfig {
     baseUrl: (c.baseUrl || "https://api.deepseek.com/v1").replace(/\/$/, ""),
     model: c.model || "deepseek-chat",
     hour: typeof c.hour === "number" ? c.hour : 0,
+    persona: c.persona || "coach",
   };
 }
+
+const PERSONA: Record<string, string> = {
+  coach: `语气：像一个很懂你的朋友，温和但不腻，先接住情绪再说事。可以共情，但不要一直安慰。`,
+  roast: `语气：毒舌但善意，像关系很铁的朋友损你两句。只损行为不损人，不能人身攻击、不能贬低人格。
+可以用夸张的比喻调侃，但结尾一定要真诚，让人觉得被推了一把而不是被嫌弃。`,
+  analyst: `语气：克制、精确，像一个帮你复盘的人。少用感叹号和形容词，多讲因果和数字之间的关系。
+可以冷静指出"你在做什么"和"结果是什么"之间的落差，但不要冷嘲。`,
+};
+
+/** E：连续中断时的"复活"话术 */
+const REVIVE = `如果事实里有"最近断掉的连续"，第一段要用一句轻松的话接住它——
+不要说教、不要分析原因、不要说"没关系"这种空话，而是让人觉得"重新开始只需要一次"，可以带点自嘲式的幽默。`;
 
 export type DayFacts = {
   nickname: string;
@@ -160,15 +175,28 @@ export async function collectFacts(opts: {
   };
 }
 
-const SYSTEM_PROMPT = `你是一个很懂人的习惯教练，说话像一个了解对方的朋友，不是客服。
+const SYSTEM_BASE = `你是一个很懂人的习惯教练，说话像一个了解对方的朋友，不是客服。
 要求：
-1. 必须基于给定的事实，不要编造没有的数据。
-2. 先认可具体的进展（提到具体习惯名、时间、数字），再给 1 条具体可执行的建议。
+1. 必须基于给定的事实，不要编造没有的数据，不要空喊口号。
+2. 先认可具体的进展（提到具体习惯名、时间、数字），再给建议。
 3. 如果今天完成得少，不要指责，要共情 + 给一个很小的下一步。
 4. 语气自然口语，不要用「首先/其次/总之」这类词，不要堆砌鼓励词。
-5. 全文 150–220 字，分成 2–3 段，不要用列表。
-6. 结尾可以有一句简短的鼓励或调侃，像 Duolingo 那样有点性格但不油腻。
-7. 直接输出正文，不要加标题、不要 markdown 符号。`;
+5. 全文 150–240 字，分成 2–3 段，不要用列表。
+6. 直接输出正文，不要加标题、不要 markdown 符号。
+
+【最后一段必须做的事】
+给一个"明天的最小行动"：具体到 做什么 + 什么时候做 + 大概多久。
+要小到几乎不可能失败（比如"明早刷完牙就做 3 分钟"），并且要针对事实里最难坚持的那件事。
+不要写"保持下去""继续加油"这种没有信息量的话。`;
+
+// 【复活话术】
+// ${REVIVE}
+
+function systemPrompt(persona?: string) {
+  return `${SYSTEM_BASE}\n\n【说话的人】\n${PERSONA[persona ?? "coach"] ?? PERSONA.coach}\n\n【断签时】\n${REVIVE}`;
+}
+
+const SYSTEM_PROMPT = systemPrompt("coach");
 
 export function factsToPrompt(f: DayFacts): string {
   const lines = [
@@ -199,7 +227,7 @@ export async function callAi(cfg: AiConfig, prompt: string): Promise<string> {
     body: JSON.stringify({
       model: cfg.model,
       messages: [
-        { role: "system", content: SYSTEM_PROMPT },
+        { role: "system", content: systemPrompt(cfg.persona) },
         { role: "user", content: prompt },
       ],
       temperature: 0.8,

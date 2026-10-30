@@ -1380,3 +1380,12 @@ html[data-theme="maltese"] .heat i.l4 { background: var(--ink); }
   .ai-overlay { align-items: center; }
   .ai-sheet { max-width: 460px; }
 }
+
+/* 居中显示（覆盖底部弹出） */
+.ai-overlay {
+  align-items: center !important;
+  padding: 24px 16px calc(24px + var(--safe)) !important;
+}
+.ai-sheet {
+  max-height: 76dvh !important;
+}
