@@ -51,7 +51,8 @@ export default async function RewardDetailPage({
   const imgs = Array.isArray(reward.images) ? (reward.images as string[]) : [];
   const soldOut = reward.stock === 0 && !openGroup;
   const canAfford = balance >= reward.pointsCost;
-  const left = reward.limitPerUser - used;
+  // limitPerUser = 0 表示每人无限次
+  const left = reward.limitPerUser > 0 ? reward.limitPerUser - used : Number.POSITIVE_INFINITY;
   const inGroup = openGroup?.participants.some((p) => p.userId === ctx.user.id) ?? false;
   const remaining = openGroup ? openGroup.pointsCost - openGroup.raisedPoints : 0;
 
@@ -123,7 +124,8 @@ export default async function RewardDetailPage({
         <div className="kv">
           <span>每人限兑</span>
           <b>
-            {reward.limitPerUser} 次{used > 0 ? `（已兑 ${used} 次）` : ""}
+            {reward.limitPerUser > 0 ? `${reward.limitPerUser} 次` : "无限次"}
+            {used > 0 ? `（已兑 ${used} 次）` : ""}
           </b>
         </div>
         <div className="kv">

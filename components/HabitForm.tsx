@@ -159,21 +159,33 @@ export default function HabitForm({
         </div>
       ) : null}
 
-      {type !== "TIMED" ? (
-        <div className="field-row">
-          <label className="field">
-            <span>{type === "QUANTITY" ? "额外每次给分（可选）" : "打卡一次给多少分"}</span>
-            <input
-              name="pointsPerCheckin"
-              type="number"
-              min={0}
-              defaultValue={type === "QUANTITY" ? (defaults.pointsPerCheckin ?? 0) : (defaults.pointsPerCheckin ?? 10)}
-            />
-          </label>
-          <label className="field">
-            <span>单日上限（留空不限）</span>
-            <input name="dailyCap" type="number" min={0} defaultValue={defaults.dailyCap ?? ""} placeholder="不限" />
-          </label>
+      <div className="field-row">
+        <label className="field">
+          <span>
+            {type === "QUANTITY" ? "额外每次给分（可选）" : type === "TIMED" ? "计时达标给多少分" : "打卡一次给多少分"}
+          </span>
+          <input
+            name="pointsPerCheckin"
+            type="number"
+            min={0}
+            defaultValue={
+              type === "QUANTITY"
+                ? (defaults.pointsPerCheckin ?? 0)
+                : type === "TIMED"
+                  ? (defaults.pointsPerCheckin ?? 10)
+                  : (defaults.pointsPerCheckin ?? 10)
+            }
+          />
+        </label>
+        <label className="field">
+          <span>单日上限（留空不限）</span>
+          <input name="dailyCap" type="number" min={0} defaultValue={defaults.dailyCap ?? ""} placeholder="不限" />
+        </label>
+      </div>
+
+      {type === "TIMED" ? (
+        <div className="tiny" style={{ marginTop: -6 }}>
+          计时结束达标时按这个分给，计分规则的分不会再重复发；填 0 就只记时间不给分。
         </div>
       ) : null}
 

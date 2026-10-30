@@ -176,7 +176,7 @@ export async function buildDayReport(opts: {
 /** 转成可以直接贴进日记的 markdown */
 export function dayReportToMarkdown(r: DayReport): string {
   const lines: string[] = [];
-  lines.push(`## ${r.date} ${r.weekday}`);
+  lines.push(`### ${r.date} ${r.weekday}`);
   lines.push("");
 
   const done = r.habits.filter((h) => h.done);

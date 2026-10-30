@@ -16,9 +16,15 @@ function hhmmss(sec: number) {
     : `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
-export default async function TimerPage() {
+export default async function TimerPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ habit?: string }>;
+}) {
   const ctx = await getContext();
   if (!ctx) redirect("/login");
+
+  const { habit: initialHabitId } = await searchParams;
 
   await cleanupStaleSessions(ctx.user.id);
 
@@ -103,6 +109,7 @@ export default async function TimerPage() {
       </header>
 
       <TimerClient
+        initialHabitId={initialHabitId ?? ""}
         active={activeProp}
         skills={skillOptions}
         timedHabits={timedHabits}

@@ -279,6 +279,18 @@ export default async function SettingsPage({
       </div>
 
       <div className="settings-group">
+        <div className="section-title"><b>AI</b></div>
+        <Link href="/settings/ai" className="settings-row">
+          <span className="ico">🤖</span>
+          <span style={{ flex: 1 }}>
+            <b>AI 回顾</b>
+            <em>每天一份个性化的日报</em>
+          </span>
+          <span className="tiny">›</span>
+        </Link>
+      </div>
+
+      <div className="settings-group">
         <div className="section-title"><b>数据</b></div>
         <Link href="/settings/danger" className="settings-row">
           <span className="ico">🧹</span>
@@ -324,6 +336,18 @@ export default async function SettingsPage({
             </button>
           </form>
         </div>
+      </div>
+
+      <div className="settings-group">
+        <div className="section-title"><b>AI</b></div>
+        <Link href="/settings/ai" className="settings-row">
+          <span className="ico">🤖</span>
+          <span style={{ flex: 1 }}>
+            <b>AI 回顾</b>
+            <em>每天一份个性化的日报</em>
+          </span>
+          <span className="tiny">›</span>
+        </Link>
       </div>
 
       <div className="settings-group">

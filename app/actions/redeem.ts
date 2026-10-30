@@ -87,7 +87,7 @@ export async function redeemAction(formData: FormData) {
           status: { in: ["OPEN", "APPROVED", "FULFILLED", "COMPLETED"] },
         },
       });
-      if (used >= reward.limitPerUser) throw new BizError("已达每人限兑次数");
+      // limitPerUser = 0 表示每人无限次\n  if (reward.limitPerUser > 0 && used >= reward.limitPerUser) throw new BizError("已达每人限兑次数");
 
       // 库存（条件更新，禁止先查后改）
       if (reward.stock != null) {

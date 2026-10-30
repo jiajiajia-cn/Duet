@@ -162,7 +162,7 @@ export default async function TodayPage() {
                   ) : null}
                 </div>
                 {row.type === "timed" ? (
-                  <Link href="/timer" className="check">
+                  <Link href={`/timer?habit=${row.id}`} className="check">
                     ▶
                   </Link>
                 ) : (

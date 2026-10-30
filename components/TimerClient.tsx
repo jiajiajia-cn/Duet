@@ -43,11 +43,13 @@ export default function TimerClient({
   skills,
   timedHabits,
   pomo,
+  initialHabitId = "",
 }: {
   active: ActiveSession | null;
   skills: SkillOption[];
   timedHabits: HabitOption[];
   pomo: PomoConfig;
+  initialHabitId?: string;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -56,7 +58,7 @@ export default function TimerClient({
   const [stopwatch, setStopwatch] = useState(false);
   const [pomoMode, setPomoMode] = useState(false);
   const [skillId, setSkillId] = useState<string>(active?.skillId ?? skills[0]?.id ?? "");
-  const [habitId, setHabitId] = useState<string>("");
+  const [habitId, setHabitId] = useState<string>(initialHabitId);
   const [toast, setToast] = useState<string | null>(null);
   const [next, setNext] = useState<{ phase: "FOCUS" | "BREAK" | "LONG_BREAK"; minutes: number; round: number } | null>(null);
   const [notify, setNotify] = useState<string>("default");

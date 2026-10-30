@@ -50,6 +50,15 @@ export default async function MePage() {
         </div>
       </div>
 
+      <Link href="/ai" className="settings-row" style={{ marginBottom: 12 }}>
+        <span className="ico">🤖</span>
+        <span style={{ flex: 1 }}>
+          <b>AI 回顾</b>
+          <em>每天一份，看看它怎么说</em>
+        </span>
+        <span className="tiny">›</span>
+      </Link>
+
       <Link href="/report" className="settings-row" style={{ marginBottom: 12 }}>
         <span className="ico">📊</span>
         <span style={{ flex: 1 }}>

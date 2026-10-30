@@ -50,6 +50,7 @@ model User {
   entries        Entry[]
   roomMembers    RoomMember[]
   makeupCards    MakeupCard[]
+  aiReports      AiReport[]
   supervisionsAsSupervisor Supervision[] @relation("Supervisor")
   supervisionsAsMember     Supervision[] @relation("SupervisedMember")
 }
@@ -67,6 +68,7 @@ model Circle {
 
   members     CircleMember[]
   makeupCards MakeupCard[]
+  aiReports   AiReport[]
   activeFor   User[]  @relation("ActiveCircle")
   habits      Habit[]
   rewards     Reward[]
@@ -744,5 +746,24 @@ model MakeupCard {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([circleId, userId, usedAt])
+  @@index([userId, createdAt])
+}
+
+/// AI 生成的日报 / 周报
+model AiReport {
+  id       String @id @default(cuid())
+  circleId String
+  userId   String
+  kind     String @default("DAILY") @db.VarChar(8)
+  date     String @db.VarChar(10)
+  content  String @db.Text
+  model    String?
+  readAt   DateTime?
+  createdAt DateTime @default(now())
+
+  circle Circle @relation(fields: [circleId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, kind, date])
   @@index([userId, createdAt])
 }

@@ -1324,3 +1324,59 @@ html[data-theme="maltese"] .heat i.l4 { background: var(--ink); }
 .week-cell.l4 .wc-bar { background: var(--brand); }
 .week-cell .wc-day { font-size: 12px; font-weight: 650; font-variant-numeric: tabular-nums; }
 .week-cell .wc-wd { font-size: 10px; color: var(--ink3); }
+
+/* ---------- AI 回顾弹窗 ---------- */
+.ai-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(10, 12, 24, 0.42);
+  backdrop-filter: none;
+  animation: aiFade 240ms ease-out;
+  padding: 0 12px calc(20px + var(--safe));
+}
+@keyframes aiFade { from { opacity: 0 } to { opacity: 1 } }
+
+.ai-sheet {
+  width: 100%;
+  max-width: 430px;
+  background: var(--card);
+  border-radius: 26px;
+  padding: 20px 20px 18px;
+  box-shadow: 0 24px 60px -20px rgba(10, 12, 24, 0.5);
+  border: 1px solid var(--hairline);
+  animation: aiRise 280ms cubic-bezier(0.22, 0.9, 0.28, 1);
+  max-height: 78dvh;
+  overflow-y: auto;
+}
+@keyframes aiRise { from { transform: translateY(24px); opacity: 0 } to { transform: none; opacity: 1 } }
+
+.ai-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.ai-badge {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--brand) 12%, transparent);
+  color: var(--brand);
+}
+.ai-body p {
+  font-size: 14.5px;
+  line-height: 1.8;
+  margin: 0 0 12px;
+  color: var(--ink2);
+}
+.ai-body p:last-child { margin-bottom: 0; }
+
+@media (min-width: 640px) {
+  .ai-overlay { align-items: center; }
+  .ai-sheet { max-width: 460px; }
+}

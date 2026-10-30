@@ -81,8 +81,8 @@ export default function RewardForm({
           <input name="stock" type="number" min={0} defaultValue={defaults.stock ?? ""} placeholder="不限" />
         </label>
         <label className="field">
-          <span>每人限兑</span>
-          <input name="limitPerUser" type="number" min={1} defaultValue={defaults.limitPerUser ?? 1} />
+          <span>每人限兑（0 = 无限次）</span>
+          <input name="limitPerUser" type="number" min={0} defaultValue={defaults.limitPerUser ?? 1} />
         </label>
       </div>
 

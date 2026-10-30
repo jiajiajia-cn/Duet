@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { cookies } from "next/headers";
 import "./globals.css";
 import TabBar from "@/components/TabBar";
+import AiReportGate from "@/components/AiReportGate";
 import { getContext } from "@/lib/queries";
 import { prisma } from "@/lib/db";
 
@@ -52,6 +53,7 @@ export default async function RootLayout({
         <div className="app">
           <div className="app-inner">{children}</div>
           <TabBar alert={alert} />
+        <AiReportGate />
         </div>
       </body>
     </html>
