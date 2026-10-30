@@ -7,6 +7,20 @@ import { getContext } from "@/lib/queries";
 import { localDateString, shiftDate } from "@/lib/date";
 import { aiConfig, callAi, collectFacts, factsToPrompt, fallbackText, type AiConfig } from "@/lib/ai";
 import { computeInsights, insightsToText } from "@/lib/insights";
+import {
+  detectInsights,
+  markShown,
+  pickForSurface,
+  pickedToText,
+  recentlyShown,
+  type InsightKind,
+} from "@/lib/insight-engine";
+
+/** 圈主在设置里勾选启用的洞察类型 */
+function enabledKinds(settings: unknown): InsightKind[] {
+  const s = (settings ?? {}) as { ai?: { kinds?: InsightKind[] } };
+  return s.ai?.kinds ?? [];
+}
 
 async function requireCtx() {
   const ctx = await getContext();
@@ -30,6 +44,7 @@ export async function saveAiConfigAction(fd: FormData) {
   const enabled = fd.get("enabled") === "on";
   const hour = Math.min(6, Math.max(0, Number(fd.get("hour") ?? 0) || 0));
   const persona = String(fd.get("persona") ?? prev.persona ?? "coach");
+  const kinds = fd.getAll("kinds").map(String);
 
   await prisma.circle.update({
     where: { id: ctx.circle.id },
@@ -44,6 +59,7 @@ export async function saveAiConfigAction(fd: FormData) {
           enabled,
           hour,
           persona,
+          kinds,
         },
       },
     },
@@ -90,10 +106,32 @@ export async function ensureDailyReport(opts?: { force?: boolean }) {
     timezone: ctx.user.timezone,
   });
 
+  // 只挑一条最值得说的洞察，7 天内说过的不再重复
+  const insightsData = await computeInsights({
+    circleId: ctx.circle.id,
+    userId: ctx.user.id,
+    today: date,
+    timezone: ctx.user.timezone,
+    days: 30,
+  }).catch(() => null);
+  const shown = await recentlyShown(ctx.user.id, 7);
+  const picked = insightsData
+    ? pickForSurface(detectInsights(insightsData, enabledKinds(ctx.circle.settings)), "daily", shown)
+    : [];
+
   let content = "";
   let model = cfg.model ?? "deepseek-chat";
   try {
-    content = await callAi(cfg, factsToPrompt(facts));
+    content = await callAi(
+      cfg,
+      `${factsToPrompt(facts)}
+
+【这次可以说的规律（只能从这里选，也可以不提）】
+${pickedToText(picked)}
+
+如果上面给了规律，就用一句话把它讲透，再顺着它给建议；如果写的是"没有足够可靠的规律"，就只聊今天，不要编规律。`,
+    );
+    await markShown(ctx.user.id, picked);
   } catch (e) {
     content = fallbackText(facts);
     model = "fallback";
@@ -194,6 +232,11 @@ export async function generateWeeklyAction() {
     days: 30,
   });
 
+  const weeklyPicked = pickForSurface(
+    detectInsights(insight, enabledKinds(ctx.circle.settings)),
+    "weekly",
+  );
+
   let content = "";
   let model = cfg.model ?? "deepseek-chat";
   try {
@@ -206,6 +249,9 @@ export async function generateWeeklyAction() {
    用具体数字说清楚，不要泛泛而谈。
 2. 基于这个规律给一个下周的调整方案，要具体到"怎么做"，不是"要坚持"。
 3. 最后一句给一个最小行动。
+
+【这次可以说的规律（只能从这里选）】
+${pickedToText(weeklyPicked)}
 
 【统计】
 ${insightsToText(insight)}

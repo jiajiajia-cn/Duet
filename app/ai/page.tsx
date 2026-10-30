@@ -6,6 +6,7 @@ import { getContext } from "@/lib/queries";
 import { aiConfig } from "@/lib/ai";
 import { generateWeeklyAction } from "@/app/actions/ai";
 import { computeInsights } from "@/lib/insights";
+import { detectInsights, pickForSurface, KIND_LABEL } from "@/lib/insight-engine";
 import { localDateString } from "@/lib/date";
 
 export default async function AiHistoryPage({
@@ -27,6 +28,9 @@ export default async function AiHistoryPage({
     timezone: ctx.user.timezone,
     days: 30,
   }).catch(() => null);
+
+  const candidates = insight ? detectInsights(insight) : [];
+  const picked = pickForSurface(candidates, "page");
 
   const reports = await prisma.aiReport
     .findMany({
@@ -132,7 +136,31 @@ export default async function AiHistoryPage({
             </div>
           ) : null}
 
-          <div className="tiny" style={{ marginTop: 10, lineHeight: 1.6 }}>
+          {picked.length ? (
+            <div style={{ marginTop: 14 }}>
+              <div className="tiny" style={{ fontWeight: 700, marginBottom: 8 }}>
+                值得注意的
+              </div>
+              {picked.map((x, i) => (
+                <div key={i} style={{ marginBottom: 12 }}>
+                  <div className="tiny" style={{ color: "var(--brand)", fontWeight: 700, marginBottom: 3 }}>
+                    {KIND_LABEL[x.kind]}
+                  </div>
+                  <div style={{ fontSize: 13.5, lineHeight: 1.65 }}>{x.text}</div>
+                  {x.action ? (
+                    <div className="tiny" style={{ marginTop: 3, lineHeight: 1.6 }}>
+                      → {x.action}
+                    </div>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="tiny" style={{ marginTop: 14, lineHeight: 1.6 }}>
+              还没有足够可靠的规律。再记几天，等数据能撑住结论了它才会说。
+            </div>
+          )}
+          <div className="tiny" style={{ marginTop: 12, lineHeight: 1.6 }}>
             这些都是按你的记录算出来的，不是 AI 编的。点下面的「生成这周的总结」会让 AI 解读它们。
           </div>
         </div>

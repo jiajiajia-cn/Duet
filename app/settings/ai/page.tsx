@@ -17,6 +17,7 @@ export default async function AiSettingsPage({
 
   const { ok, error } = await searchParams;
   const cfg = aiConfig(ctx.circle.settings);
+  const kinds = ((ctx.circle.settings ?? {}) as { ai?: { kinds?: string[] } }).ai?.kinds ?? [];
 
   const count = await prisma.aiReport.count({ where: { userId: ctx.user.id } }).catch(() => 0);
 
@@ -70,6 +71,30 @@ export default async function AiSettingsPage({
             <span>几点之后算当天（0–6）</span>
             <input name="hour" type="number" min={0} max={6} defaultValue={cfg.hour ?? 0} />
           </label>
+        </div>
+
+        <div className="field">
+          <span>要它关注哪些规律</span>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 6 }}>
+            {[
+              ["correlation", "习惯互相带动"],
+              ["drift", "时间漂移"],
+              ["precursor", "断签前兆"],
+              ["weekday", "星期规律"],
+              ["trend", "趋势"],
+              ["focus", "专注分布"],
+            ].map(([k, label]) => (
+              <label key={k} className="chip" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                <input
+                  type="checkbox"
+                  name="kinds"
+                  value={k}
+                  defaultChecked={(kinds.length === 0 ? true : kinds.includes(k))}
+                />
+                {label}
+              </label>
+            ))}
+          </div>
         </div>
 
         <button className="btn" type="submit">

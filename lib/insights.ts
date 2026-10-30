@@ -19,7 +19,36 @@ export type Insight = {
   topSkill: { name: string; minutes: number } | null;
   longest: { title: string; days: number } | null;
   focusMinutes: number;
+  /** 跨习惯关联：A 做成的那天 B 更容易完成 */
+  correlations: { from: string; to: string; withA: number; withoutA: number; samples: number }[];
+  /** 时间漂移：连续几天越来越晚 */
+  drift: { title: string; from: string; to: string; days: number; shift: number }[];
+  /** 断签前兆 */
+  precursor: { breaks: number; lateBefore: number; lateMinutes: number } | null;
 };
+
+function minutesOfDay(d: Date, tz: string): number {
+  const s = new Intl.DateTimeFormat("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone: tz,
+  }).format(d);
+  const [h, m] = s.split(":");
+  return Number(h) * 60 + Number(m);
+}
+
+function fmtMinutes(m: number): string {
+  const h = Math.floor(m / 60) % 24;
+  const mm = Math.round(m % 60);
+  return `${String(h).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
+}
+
+function median(nums: number[]): number {
+  if (!nums.length) return 0;
+  const a = [...nums].sort((x, y) => x - y);
+  return a[Math.floor(a.length / 2)];
+}
 
 /**
  * 纯统计出来的规律，不调 AI。
@@ -194,7 +223,117 @@ export async function computeInsights(opts: {
     .map((s) => ({ title: titleOf.get(s.habitId) ?? "某个习惯", days: s.bestStreak }))
     .sort((a, b) => b.days - a.days)[0] ?? null;
 
+  // ---------- 三块深度分析 ----------
+
+  // 每个习惯的打卡日期集合 + 时间序列
+  const doneDates = new Map<string, Set<string>>();
+  const timeSeries = new Map<string, { date: string; min: number }[]>();
+  for (const c of checkins) {
+    if (!doneDates.has(c.habitId)) doneDates.set(c.habitId, new Set());
+    doneDates.get(c.habitId)!.add(c.localDate);
+    if (!timeSeries.has(c.habitId)) timeSeries.set(c.habitId, []);
+    timeSeries.get(c.habitId)!.push({ date: c.localDate, min: minutesOfDay(new Date(c.checkedAt), opts.timezone) });
+  }
+  for (const list of timeSeries.values()) list.sort((a, b) => a.date.localeCompare(b.date));
+
+  // ① 跨习惯关联：只在"两个习惯那天都该做"的日子里比较
+  const dateList: string[] = [];
+  for (let i = 0; i < days; i++) dateList.push(shiftDate(start, i));
+
+  const active = habits.filter((h) => (habitDue.get(h.id) ?? 0) >= 5);
+  const correlations: Insight["correlations"] = [];
+  for (const a of active) {
+    const aDates = doneDates.get(a.id) ?? new Set<string>();
+    for (const b of active) {
+      if (a.id === b.id) continue;
+      const bDates = doneDates.get(b.id) ?? new Set<string>();
+
+      let withA = 0, withADone = 0, withoutA = 0, withoutADone = 0;
+      for (const d of dateList) {
+        if (!isDueByDay(a.frequency as Freq, d) || !isDueByDay(b.frequency as Freq, d)) continue;
+        if (aDates.has(d)) {
+          withA++;
+          if (bDates.has(d)) withADone++;
+        } else {
+          withoutA++;
+          if (bDates.has(d)) withoutADone++;
+        }
+      }
+
+      // 样本太少不算，避免巧合
+      if (withA < 4 || withoutA < 4) continue;
+      const rateWith = Math.round((withADone / withA) * 100);
+      const rateWithout = Math.round((withoutADone / withoutA) * 100);
+      const lift = rateWith - rateWithout;
+      if (lift < 20) continue;
+
+      correlations.push({
+        from: a.title,
+        to: b.title,
+        withA: rateWith,
+        withoutA: rateWithout,
+        samples: withA + withoutA,
+      });
+    }
+  }
+  correlations.sort((x, y) => (y.withA - y.withoutA) - (x.withA - x.withoutA));
+
+  // ② 时间漂移：最近几次是不是越来越晚
+  const drift: Insight["drift"] = [];
+  for (const h of active) {
+    const series = (timeSeries.get(h.id) ?? []).slice(-8);
+    if (series.length < 5) continue;
+
+    const first = series[0];
+    const last = series[series.length - 1];
+    const shift = last.min - first.min;
+    if (shift < 40) continue;
+
+    let ups = 0;
+    for (let i = 1; i < series.length; i++) if (series[i].min > series[i - 1].min) ups++;
+    if (ups < Math.ceil((series.length - 1) * 0.7)) continue;
+
+    drift.push({
+      title: h.title,
+      from: fmtMinutes(first.min),
+      to: fmtMinutes(last.min),
+      days: series.length,
+      shift,
+    });
+  }
+  drift.sort((a, b) => b.shift - a.shift);
+
+  // ③ 断签前兆：断掉那次的前一天，是不是比平时晚很多
+  let breaks = 0;
+  let lateBefore = 0;
+  const LATE = 120;
+  for (const h of active) {
+    const series = timeSeries.get(h.id) ?? [];
+    if (series.length < 3) continue;
+    const typical = median(series.map((s) => s.min));
+    const doneMap = new Map(series.map((s) => [s.date, s.min]));
+
+    let prevDueDone: { date: string; min: number } | null = null;
+    for (const d of dateList) {
+      if (!isDueByDay(h.frequency as Freq, d)) continue;
+      const min = doneMap.get(d);
+      if (min != null) {
+        prevDueDone = { date: d, min };
+        continue;
+      }
+      // 今天该做但没做，且上一次该做的做了 → 算一次断
+      if (prevDueDone) {
+        breaks++;
+        if (prevDueDone.min - typical >= LATE) lateBefore++;
+        prevDueDone = null;
+      }
+    }
+  }
+
   return {
+    correlations: correlations.slice(0, 3),
+    drift: drift.slice(0, 3),
+    precursor: breaks >= 2 ? { breaks, lateBefore, lateMinutes: LATE } : null,
     range: { start, end: opts.today, days },
     overallRate: totalDue ? Math.round((totalDone / totalDue) * 100) : 0,
     byWeekday,
@@ -232,6 +371,17 @@ export function insightsToText(i: Insight): string {
     i.lateHabits.length ? `深夜才打卡的习惯：${i.lateHabits.map((x) => x.title).join("、")}` : "",
     i.focusMinutes ? `专注总时长 ${i.focusMinutes} 分钟${i.topSkill ? `，最多的是 ${i.topSkill.name}（${i.topSkill.minutes} 分钟）` : ""}` : "",
     i.longest ? `最长连续纪录：${i.longest.title} ${i.longest.days} 天` : "",
+    i.correlations.length
+      ? `习惯之间的带动关系：${i.correlations
+          .map((c) => `做「${c.from}」的那天，「${c.to}」完成率 ${c.withA}%；不做时只有 ${c.withoutA}%`)
+          .join("；")}`
+      : "",
+    i.drift.length
+      ? `打卡时间在往后拖：${i.drift.map((d) => `「${d.title}」最近 ${d.days} 次从 ${d.from} 拖到 ${d.to}`).join("；")}`
+      : "",
+    i.precursor && i.precursor.lateBefore >= 1
+      ? `断签前兆：过去 ${i.precursor.breaks} 次断签里，有 ${i.precursor.lateBefore} 次前一天打卡比平时晚了 ${i.precursor.lateMinutes} 分钟以上`
+      : "",
   ];
   return lines.filter(Boolean).join("\n");
 }

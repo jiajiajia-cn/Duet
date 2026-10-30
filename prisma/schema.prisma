@@ -51,6 +51,7 @@ model User {
   roomMembers    RoomMember[]
   makeupCards    MakeupCard[]
   aiReports      AiReport[]
+  insightSeen    InsightSeen[]
   supervisionsAsSupervisor Supervision[] @relation("Supervisor")
   supervisionsAsMember     Supervision[] @relation("SupervisedMember")
 }
@@ -766,4 +767,17 @@ model AiReport {
 
   @@unique([userId, kind, date])
   @@index([userId, createdAt])
+}
+
+/// 记录某条洞察上次展示的时间，用来做冷却和去重
+model InsightSeen {
+  id        String   @id @default(cuid())
+  userId    String
+  topicKey  String
+  shownAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, topicKey])
+  @@index([userId, shownAt])
 }
