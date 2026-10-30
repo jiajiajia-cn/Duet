@@ -10,6 +10,10 @@ const extraOrigins = (process.env.ALLOWED_ORIGINS ?? "")
 const nextConfig: NextConfig = {
   // 开发时的左下角小圆点会挡住底部导航，关掉
   devIndicators: false,
+  // 构建时跳过 ESLint：服务器只有 2G 内存，省一点算一点
+  eslint: { ignoreDuringBuilds: true },
+  // 生产构建关掉 source map，体积和内存都小很多
+  productionBrowserSourceMaps: false,
   experimental: {
     serverActions: {
       bodySizeLimit: "5mb",
