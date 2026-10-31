@@ -223,8 +223,10 @@ export function factsToPrompt(f: DayFacts): string {
 
 /** 调 DeepSeek（OpenAI 兼容接口） */
 export async function callAi(cfg: AiConfig, prompt: string): Promise<string> {
+  // 没有超时的话，接口一挂请求就一直挂着，整页跟着卡死
   const res = await fetch(`${cfg.baseUrl}/chat/completions`, {
     method: "POST",
+    signal: AbortSignal.timeout(30_000),
     headers: {
       "content-type": "application/json",
       authorization: `Bearer ${cfg.apiKey}`,

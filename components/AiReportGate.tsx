@@ -12,8 +12,13 @@ export default function AiReportGate() {
   const [, start] = useTransition();
 
   useEffect(() => {
+    // 每次导航都会挂载一次，做节流：一分钟内最多问一次服务端
+    const last = Number(window.sessionStorage.getItem("duet_ai_check") ?? 0);
+    if (Date.now() - last < 60_000) return;
+
     let alive = true;
     const timer = window.setTimeout(() => {
+      window.sessionStorage.setItem("duet_ai_check", String(Date.now()));
       fetchUnreadReport()
         .then((r) => {
           if (!alive || !r) return;

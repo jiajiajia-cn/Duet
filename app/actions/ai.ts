@@ -85,6 +85,10 @@ export async function testAiAction() {
   redirect("/settings/ai?ok=" + encodeURIComponent(`连接正常：${result.slice(0, 60)}`));
 }
 
+/** 正在生成中的占位标记 */
+const PENDING = "pending";
+const PENDING_TTL_MS = 3 * 60 * 1000;
+
 /** 生成某天的日报（已存在就直接返回） */
 export async function ensureDailyReport(opts?: { force?: boolean }) {
   const ctx = await requireCtx();
@@ -94,11 +98,30 @@ export async function ensureDailyReport(opts?: { force?: boolean }) {
   const today = localDateString(ctx.user.timezone, ctx.user.dayStartHour);
   // 0 点之后生成的是「刚刚结束的那一天」，不是新的这天
   const date = shiftDate(today, -1);
+  const where = { userId_kind_date: { userId: ctx.user.id, kind: "DAILY" as const, date } };
 
-  const existing = await prisma.aiReport.findUnique({
-    where: { userId_kind_date: { userId: ctx.user.id, kind: "DAILY", date } },
-  });
-  if (existing && !opts?.force) return { ok: true as const, id: existing.id };
+  const existing = await prisma.aiReport.findUnique({ where });
+
+  if (existing && !opts?.force) {
+    // 已经有真内容了，直接用
+    if (existing.content && existing.model !== PENDING) return { ok: true as const, id: existing.id };
+    // 别人正在生成；超过 3 分钟视为卡死，允许接管
+    const age = Date.now() - new Date(existing.createdAt).getTime();
+    if (age < PENDING_TTL_MS) return { ok: false as const, reason: "pending" as const };
+  }
+
+  // 抢一个"生成中"的占位，避免多个页面同时触发调用 AI（会被限流，进而退化成 fallback）
+  if (!existing) {
+    try {
+      await prisma.aiReport.create({
+        data: { circleId: ctx.circle.id, userId: ctx.user.id, kind: "DAILY", date, content: "", model: PENDING },
+      });
+    } catch {
+      const again = await prisma.aiReport.findUnique({ where });
+      if (again?.content && again.model !== PENDING) return { ok: true as const, id: again.id };
+      return { ok: false as const, reason: "pending" as const };
+    }
+  }
 
   const facts = await collectFacts({
     circleId: ctx.circle.id,
@@ -121,32 +144,56 @@ export async function ensureDailyReport(opts?: { force?: boolean }) {
     ? pickForSurface(detectInsights(insightsData, enabledKinds(ctx.circle.settings)), "daily", shown)
     : [];
 
-  let content = "";
-  let model = cfg.model ?? "deepseek-chat";
-  try {
-    content = await callAi(
-      cfg,
-      `${factsToPrompt(facts)}
+  const prompt = `${factsToPrompt(facts)}
 
 【这次可以说的规律（只能从这里选，也可以不提）】
 ${pickedToText(picked)}
 
-如果上面给了规律，就用一句话把它讲透，再顺着它给建议；如果写的是"没有足够可靠的规律"，就只聊今天，不要编规律。`,
-    );
-    await markShown(ctx.user.id, picked);
-  } catch (e) {
+如果上面给了规律，就用一句话把它讲透，再顺着它给建议；如果写的是"没有足够可靠的规律"，就只聊今天，不要编规律。`;
+
+  let content = "";
+  let model = cfg.model ?? "deepseek-chat";
+  let lastError = "";
+
+  // 网络抖动/限流重试一次，别一次失败就退化成简版
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      content = await callAi(cfg, prompt);
+      break;
+    } catch (e) {
+      lastError = (e as Error).message;
+      if (attempt === 0) await new Promise((r) => setTimeout(r, 1200));
+    }
+  }
+
+  if (!content) {
     content = fallbackText(facts);
     model = "fallback";
   }
 
+  // 关键：已经有真实内容时，不要用简版把它覆盖掉
+  const prev = await prisma.aiReport.findUnique({ where });
+  if (
+    model === "fallback" &&
+    prev?.content &&
+    prev.model &&
+    prev.model !== "fallback" &&
+    prev.model !== PENDING
+  ) {
+    return { ok: true as const, id: prev.id };
+  }
+
   const saved = await prisma.aiReport.upsert({
-    where: { userId_kind_date: { userId: ctx.user.id, kind: "DAILY", date } },
+    where,
     create: { circleId: ctx.circle.id, userId: ctx.user.id, kind: "DAILY", date, content, model },
     update: { content, model, readAt: null },
   });
 
+  // 失败原因记在返回里，方便前端/日志排查
+  if (model === "fallback") console.warn("[ai] 生成失败，已用简版：", lastError);
+
   revalidatePath("/ai");
-  return { ok: true as const, id: saved.id };
+  return { ok: true as const, id: saved.id, fallback: model === "fallback", error: lastError };
 }
 
 /** 页面挂载时取：今天有没有未读的日报（没有就顺手生成） */
@@ -179,7 +226,9 @@ export async function fetchUnreadReport() {
     });
   }
 
+  // 正在生成中或内容为空，先不弹
   if (!report || report.readAt) return null;
+  if (!report.content || report.model === PENDING) return null;
 
   return {
     id: report.id,
@@ -223,7 +272,13 @@ export async function regenerateAction() {
   if (!cfg.enabled) redirect("/settings/ai?error=" + encodeURIComponent("先打开开关并填 Key"));
 
   const r = await ensureDailyReport({ force: true }).catch(() => null);
-  if (!r || !r.ok) redirect("/settings/ai?error=" + encodeURIComponent("生成失败，检查 Key 和网络"));
+  if (!r || !r.ok) {
+    redirect("/settings/ai?error=" + encodeURIComponent(r && "reason" in r && r.reason === "pending" ? "正在生成中，稍等一下" : "生成失败，检查 Key 和网络"));
+  }
+  if (r.fallback) {
+    // 把真实原因抛给用户，不然只能干瞪眼
+    redirect("/settings/ai?error=" + encodeURIComponent(`AI 调用失败：${r.error || "未知错误"}`));
+  }
   redirect("/ai?ok=" + encodeURIComponent("已重新生成"));
 }
 
