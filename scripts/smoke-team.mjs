@@ -1,4 +1,4 @@
-// 一起打卡：两个人都打了才加分；撤一个，两边一起回滚
+﻿// 一起打卡：两个人都打了才加分；撤一个，两边一起回滚
 // 用法：node scripts/smoke-team.mjs
 import { chromium } from "playwright-core";
 import { PrismaClient } from "@prisma/client";
@@ -81,7 +81,7 @@ async function main() {
   const yrow = yp.locator(".habit", { hasText: title });
   ok((await yrow.count()) === 1, "小雨也能看到（共同习惯）");
   await yrow.locator("button.check").click();
-  await yp.waitForTimeout(1600);
+  await yp.waitForTimeout(2500);
 
   const all = await prisma.checkin.findMany({ where: { habitId: habit.id, localDate: today } });
   ok(all.length === 2, `两个人都有记录（${all.length}）`);
@@ -96,7 +96,7 @@ async function main() {
   console.log("\n=== 3. 撤销一个：两边都回滚 ===");
   const row2 = dp.locator(".habit", { hasText: title });
   await row2.locator("button.check").click();
-  await dp.waitForTimeout(1600);
+  await dp.waitForTimeout(2500);
 
   const after = await prisma.checkin.findMany({ where: { habitId: habit.id, localDate: today } });
   ok(after.length === 1, `只剩小雨的记录（${after.length}）`);
