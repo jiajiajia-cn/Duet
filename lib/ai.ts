@@ -129,11 +129,16 @@ export async function collectFacts(opts: {
     .slice(0, 3)
     .map((s) => ({ title: titleOf.get(s.habitId) ?? "某个习惯", days: s.currentStreak }));
 
-  // 最近 7 天完成率
+  // 最近 7 天完成率（习惯创建之前的日子不算，避免分母虚高）
   const recentRates: number[] = [];
   for (let i = 6; i >= 0; i--) {
     const d = shiftDate(date, -i);
-    const dayHabits = habits.filter((h) => isDueByDay(h.frequency as Freq, d));
+    const dayHabits = habits.filter((h) => {
+      if (!isDueByDay(h.frequency as Freq, d)) return false;
+      const created = new Date(h.createdAt);
+      const cdate = `${created.getFullYear()}-${String(created.getMonth() + 1).padStart(2, "0")}-${String(created.getDate()).padStart(2, "0")}`;
+      return d >= cdate;
+    });
     if (!dayHabits.length) {
       recentRates.push(0);
       continue;

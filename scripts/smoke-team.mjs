@@ -69,7 +69,7 @@ async function main() {
   const row = dp.locator(".habit", { hasText: title });
   ok((await row.count()) === 1, "小满能看到这个共同习惯");
   await row.locator("button.check").click();
-  await dp.waitForTimeout(1500);
+  await dp.waitForTimeout(2500);
 
   const c1 = await prisma.checkin.findFirst({ where: { habitId: habit.id, userId: demo.id } });
   ok(!!c1 && c1.pointsAwarded === 0, `记录了但没发分（${c1?.pointsAwarded}）`);

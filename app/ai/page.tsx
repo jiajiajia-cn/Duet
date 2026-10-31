@@ -4,7 +4,8 @@ import Header from "@/components/Header";
 import { prisma } from "@/lib/db";
 import { getContext } from "@/lib/queries";
 import { aiConfig } from "@/lib/ai";
-import { generateWeeklyAction } from "@/app/actions/ai";
+import ConfirmSubmit from "@/components/ConfirmSubmit";
+import { clearAllReportsAction, deleteReportAction, generateWeeklyAction } from "@/app/actions/ai";
 import { computeInsights } from "@/lib/insights";
 import { detectInsights, pickForSurface, KIND_LABEL } from "@/lib/insight-engine";
 import { localDateString } from "@/lib/date";
@@ -27,6 +28,7 @@ export default async function AiHistoryPage({
     today,
     timezone: ctx.user.timezone,
     days: 30,
+    joinedAt: ctx.user.createdAt,
   }).catch(() => null);
 
   const candidates = insight ? detectInsights(insight) : [];
@@ -65,7 +67,7 @@ export default async function AiHistoryPage({
         </form>
       )}
 
-      {insight && insight.overallRate > 0 ? (
+      {insight ? (
         <div className="card" style={{ marginBottom: 12 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 10 }}>
             <b>数据里的规律</b>
@@ -171,9 +173,20 @@ export default async function AiHistoryPage({
       ) : (
         reports.map((r) => (
           <div key={r.id} className="card" style={{ marginBottom: 10 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
               <b style={{ fontSize: 14 }}>{r.kind === "WEEKLY" ? "周总结" : "日报"}</b>
-              <span className="tiny">{r.date}</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span className="tiny">{r.date}</span>
+                <form action={deleteReportAction}>
+                  <input type="hidden" name="id" value={r.id} />
+                  <ConfirmSubmit
+                    message={`删掉 ${r.date} 这篇回顾？`}
+                    style={{ fontSize: 12, color: "var(--ink3)", background: "none", border: "none", padding: 0 }}
+                  >
+                    删除
+                  </ConfirmSubmit>
+                </form>
+              </div>
             </div>
             {r.content.split("\n").filter(Boolean).map((p, i) => (
               <p key={i} className="tiny" style={{ lineHeight: 1.75, marginBottom: 6 }}>
@@ -189,7 +202,18 @@ export default async function AiHistoryPage({
         ))
       )}
 
-      <Link href="/settings/ai" className="btn ghost" style={{ marginTop: 12, textAlign: "center" }}>
+      {reports.length ? (
+        <form action={clearAllReportsAction} style={{ marginTop: 12 }}>
+          <ConfirmSubmit
+            message="清空全部回顾？删掉之后就找不回来了。"
+            style={{ width: "100%", height: 44, fontSize: 13, color: "var(--danger)" }}
+          >
+            清空全部
+          </ConfirmSubmit>
+        </form>
+      ) : null}
+
+      <Link href="/settings/ai" className="btn ghost" style={{ marginTop: 10, textAlign: "center" }}>
         去设置
       </Link>
     </>

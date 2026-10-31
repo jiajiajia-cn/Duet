@@ -60,9 +60,20 @@ export async function computeInsights(opts: {
   today: string;
   timezone: string;
   days?: number;
+  /** 注册时间：注册之前的数据不算，否则完成率会被拉低 */
+  joinedAt?: Date;
 }): Promise<Insight> {
   const days = opts.days ?? 30;
-  const start = shiftDate(opts.today, -(days - 1));
+  const requestedStart = shiftDate(opts.today, -(days - 1));
+  const joinedDate = opts.joinedAt
+    ? new Intl.DateTimeFormat("en-CA", {
+        timeZone: opts.timezone ?? "Asia/Shanghai",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(opts.joinedAt)
+    : requestedStart;
+  const start = joinedDate > requestedStart ? joinedDate : requestedStart;
 
   const habits = await prisma.habit.findMany({
     where: {
@@ -120,6 +131,10 @@ export async function computeInsights(opts: {
         const arch = new Date(h.archivedAt).toISOString().slice(0, 10);
         if (arch < date) continue;
       }
+      // 习惯建出来之前，不该算进"该做"
+      const created = new Date(h.createdAt);
+      const createdDate = `${created.getFullYear()}-${String(created.getMonth() + 1).padStart(2, "0")}-${String(created.getDate()).padStart(2, "0")}`;
+      if (date < createdDate) continue;
       if (!isDueByDay(h.frequency as Freq, date)) continue;
       wdDue[wd]++;
       habitDue.set(h.id, (habitDue.get(h.id) ?? 0) + 1);
@@ -148,6 +163,10 @@ export async function computeInsights(opts: {
     for (let d = from; d <= to; d = shiftDate(d, 1)) {
       const doneSet = byDate.get(d) ?? new Set<string>();
       for (const h of habits) {
+        if (d < start) continue;
+        const cd = new Date(h.createdAt);
+        const cdate = `${cd.getFullYear()}-${String(cd.getMonth() + 1).padStart(2, "0")}-${String(cd.getDate()).padStart(2, "0")}`;
+        if (d < cdate) continue;
         if (!isDueByDay(h.frequency as Freq, d)) continue;
         due++;
         if (doneSet.has(h.id)) done++;

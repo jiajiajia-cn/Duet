@@ -110,7 +110,7 @@ export default async function AiSettingsPage({
         </form>
         <form action={regenerateAction} style={{ flex: 1 }}>
           <button className="btn ghost" type="submit" style={{ width: "100%", height: 44, fontSize: 13 }}>
-            重新生成今天
+            重新生成回顾
           </button>
         </form>
       </div>

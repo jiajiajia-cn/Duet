@@ -29,6 +29,8 @@ export default async function ReportPage({
     today,
     period: active,
     weekStart: ctx.user.weekStart ?? 1,
+    timezone: ctx.user.timezone,
+    joinedAt: ctx.user.createdAt,
   });
 
   return (

@@ -92,7 +92,8 @@ export async function ensureDailyReport(opts?: { force?: boolean }) {
   if (!cfg.enabled) return { ok: false as const, reason: "disabled" as const };
 
   const today = localDateString(ctx.user.timezone, ctx.user.dayStartHour);
-  const date = today;
+  // 0 点之后生成的是「刚刚结束的那一天」，不是新的这天
+  const date = shiftDate(today, -1);
 
   const existing = await prisma.aiReport.findUnique({
     where: { userId_kind_date: { userId: ctx.user.id, kind: "DAILY", date } },
@@ -113,6 +114,7 @@ export async function ensureDailyReport(opts?: { force?: boolean }) {
     today: date,
     timezone: ctx.user.timezone,
     days: 30,
+    joinedAt: ctx.user.createdAt,
   }).catch(() => null);
   const shown = await recentlyShown(ctx.user.id, 7);
   const picked = insightsData
@@ -162,15 +164,18 @@ export async function fetchUnreadReport() {
   // 只在设定的时间之后才生成，避免白天频繁触发
   if (nowHour < (cfg.hour ?? 0)) return null;
 
+  // 报告的是昨天（刚刚结束的那天）
+  const reportDate = shiftDate(today, -1);
+
   let report = await prisma.aiReport.findUnique({
-    where: { userId_kind_date: { userId: ctx.user.id, kind: "DAILY", date: today } },
+    where: { userId_kind_date: { userId: ctx.user.id, kind: "DAILY", date: reportDate } },
   });
 
   if (!report) {
     const r = await ensureDailyReport().catch(() => null);
     if (!r || !r.ok) return null;
     report = await prisma.aiReport.findUnique({
-      where: { userId_kind_date: { userId: ctx.user.id, kind: "DAILY", date: today } },
+      where: { userId_kind_date: { userId: ctx.user.id, kind: "DAILY", date: reportDate } },
     });
   }
 
@@ -195,6 +200,22 @@ export async function markReportReadAction(fd: FormData) {
   return { ok: true };
 }
 
+/** 删掉一篇回顾 */
+export async function deleteReportAction(fd: FormData) {
+  const ctx = await requireCtx();
+  const id = String(fd.get("id") ?? "");
+  await prisma.aiReport.deleteMany({ where: { id, userId: ctx.user.id } });
+  revalidatePath("/ai");
+}
+
+/** 清空我的全部回顾 */
+export async function clearAllReportsAction() {
+  const ctx = await requireCtx();
+  await prisma.aiReport.deleteMany({ where: { userId: ctx.user.id } });
+  revalidatePath("/ai");
+  redirect("/ai?ok=" + encodeURIComponent("已清空"));
+}
+
 /** 手动重新生成（设置页用） */
 export async function regenerateAction() {
   const ctx = await requireCtx();
@@ -203,7 +224,7 @@ export async function regenerateAction() {
 
   const r = await ensureDailyReport({ force: true }).catch(() => null);
   if (!r || !r.ok) redirect("/settings/ai?error=" + encodeURIComponent("生成失败，检查 Key 和网络"));
-  redirect("/ai?ok=" + encodeURIComponent("已重新生成今天的回顾"));
+  redirect("/ai?ok=" + encodeURIComponent("已重新生成"));
 }
 
 /** 周报：最近 7 天的汇总 */
@@ -230,6 +251,7 @@ export async function generateWeeklyAction() {
     today,
     timezone: ctx.user.timezone,
     days: 30,
+    joinedAt: ctx.user.createdAt,
   });
 
   const weeklyPicked = pickForSurface(

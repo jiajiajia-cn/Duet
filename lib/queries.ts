@@ -8,7 +8,15 @@ import type { HabitRow } from "./types";
 export { requireUserId } from "./guards";
 
 export type Context = {
-  user: { id: string; nickname: string; avatarUrl: string | null; timezone: string; dayStartHour: number; weekStart: number };
+  user: {
+    id: string;
+    nickname: string;
+    avatarUrl: string | null;
+    timezone: string;
+    dayStartHour: number;
+    weekStart: number;
+    createdAt: Date;
+  };
   circle: { id: string; name: string; inviteCode: string; settings: unknown };
   role: string;
 };
@@ -23,6 +31,7 @@ export async function getContext(): Promise<Context | null> {
       id: true,
       nickname: true,
       avatarUrl: true,
+      createdAt: true,
       timezone: true,
       dayStartHour: true,
       weekStart: true,

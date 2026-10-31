@@ -36,6 +36,12 @@ function datesBetween(start: string, end: string): string[] {
   return out;
 }
 
+/** 习惯创建日期之前不该算进分母 */
+function clampDates(dates: string[], createdAt: Date, timezone?: string): string[] {
+  const created = localDateString(timezone ?? "Asia/Shanghai", 0, createdAt);
+  return dates.filter((d) => d >= created);
+}
+
 /** 某习惯在一个区间里「应该做几天」 */
 function dueDays(freq: Freq, dates: string[]): number {
   const kind = freq.kind ?? "daily";
@@ -77,10 +83,14 @@ export async function buildReport(opts: {
   today: string;
   period: Period;
   weekStart?: number;
+  timezone?: string;
+  joinedAt?: Date;
 }): Promise<Report> {
-  const { circleId, userId, today, period, weekStart = 1 } = opts;
+  const { circleId, userId, today, period, weekStart = 1, timezone, joinedAt } = opts;
   const { start, end, label } = periodRange(period, today, weekStart);
-  const dates = datesBetween(start, end);
+  // 注册之前的日期不算
+  const joinedDate = joinedAt ? localDateString(timezone ?? "Asia/Shanghai", 0, joinedAt) : start;
+  const dates = datesBetween(start, end).filter((d) => d >= joinedDate);
 
   const [habits, checkins, txns, sessions, redemptions] = await Promise.all([
     prisma.habit.findMany({
@@ -126,7 +136,8 @@ export async function buildReport(opts: {
   const habitRows: HabitReport[] = habits.map((h) => {
     const doneSet = perHabit.get(h.id) ?? new Set<string>();
     const done = doneSet.size;
-    const due = Math.max(1, dueDays((h.frequency ?? { kind: "daily" }) as Freq, dates));
+    const habitDates = clampDates(dates, h.createdAt, timezone);
+    const due = Math.max(1, dueDays((h.frequency ?? { kind: "daily" }) as Freq, habitDates));
     return {
       id: h.id,
       title: h.title,
